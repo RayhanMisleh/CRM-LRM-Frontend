@@ -40,6 +40,29 @@ Ou (fallback com npm):
 npm install --legacy-peer-deps
 ```
 
+Variáveis de ambiente
+---------------------
+
+1. Crie um arquivo `.env.local` na raiz do projeto.
+2. Defina pelo menos a variável abaixo (ajuste o host conforme o ambiente backend):
+
+   ```env
+   NEXT_PUBLIC_API_BASE_URL=https://localhost:3333
+   ```
+
+O Next.js carrega automaticamente esse arquivo em tempo de desenvolvimento e build. Sempre que o endereço da API mudar, atualize o valor antes de iniciar o projeto.
+
+Gerar tipos do OpenAPI
+----------------------
+
+Os tipos TypeScript do backend são gerados a partir do arquivo `Documentacao Backend/swagger.json` usando `openapi-typescript`.
+
+```bash
+npm run generate:openapi
+```
+
+> Caso prefira `pnpm`, o comando equivalente também está disponível (`pnpm generate:openapi`). Certifique-se de que o arquivo `Documentacao Backend/swagger.json` esteja atualizado antes de rodar o comando.
+
 Rodar em modo de desenvolvimento:
 
 ```bash
