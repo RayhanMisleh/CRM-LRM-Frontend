@@ -1,20 +1,23 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Figtree } from "next/font/google"
-import "./globals.css"
+import type React from 'react'
+import type { Metadata } from 'next'
+import { Figtree } from 'next/font/google'
+
+import { Providers } from '@/app/providers'
+
+import './globals.css'
 
 const figtree = Figtree({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-figtree",
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-figtree',
 })
 
 export const metadata: Metadata = {
-  title: "LRM Solutions - CRM",
-  description: "Sistema de gerenciamento de relacionamento com clientes LRM Solutions",
+  title: 'LRM Solutions - CRM',
+  description: 'Sistema de gerenciamento de relacionamento com clientes LRM Solutions',
   icons: {
-    icon: "/favico.svg",
-    shortcut: "/favico.svg",
+    icon: '/favico.svg',
+    shortcut: '/favico.svg',
   },
 }
 
@@ -25,7 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${figtree.variable} antialiased`}>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   )
 }
