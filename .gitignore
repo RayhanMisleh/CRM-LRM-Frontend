@@ -1,0 +1,67 @@
+# Node modules
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# TypeScript cache
+*.tsbuildinfo
+
+# pnpm
+.pnpm-hidden/
+.pnpm-store/v3
+pnpm-lock.yaml
+
+# Optional npm lockfile (if generated locally)
+package-lock.json
+
+# Build / coverage
+coverage/
+build/
+
+# Misc
+.envrc
+*.tgz
+
+# Public static assets that may be generated
+public/placeholder-*
+
+# MacOS desktop services store
+.DS_Store
+
+# JetBrains
+/.idea
+
+# Storybook (if used)
+storybook-static/
+
+# Local IDE settings
+*.iml
+
+# Ignore logs created by Next.js
+.next/cache/
+
+# Ignore generated favicon/icons if you manage them externally
+public/icons/*.png
