@@ -1,129 +1,87 @@
 # CRM-LRM-Frontend
 
-Visão geral
+## Visão geral
 
 Este projeto é uma base de frontend Next.js (App Router) em TypeScript usada como template de design para um CRM. Ele foca em componentes UI reutilizáveis (primitives) e um dashboard demonstrativo. A intenção é servir como ponto de partida para construir funcionalidades de CRM reais.
 
-Sumário rápido
+## Começando rápido
 
-- Framework: Next.js (App Router)
-- Linguagem: TypeScript
-- Estilos: Tailwind CSS
-- Gerenciador de pacotes: pnpm (preferencial) / npm (fallback)
-- Estrutura principal: `app/`, `components/`, `components/ui/`, `public/`, `hooks/`, `lib/`
-
-Principais arquivos e diretórios
-
-- `app/layout.tsx` — layout global, carregamento de fonte (`Figtree`), metadata (título, ícones) e import global de `globals.css`.
-- `app/page.tsx` — página inicial (homepage).
-- `app/globals.css` — tokens de tema, variáveis CSS e Tailwind base layer.
-- `components/crm-dashboard.tsx` — componente principal do dashboard (usa `"use client"` e muitos exemplos de UI). Boa referência de padrões visuais.
-- `components/ui/*` — primitives reutilizáveis (Button, Card, Input, Avatar, etc.). Ao criar novos elementos visuais, prefira compor com esses componentes.
-- `hooks/` — hooks compartilhados (ex.: `use-mobile.ts`).
-- `lib/utils.ts` — utilitários usados no projeto.
-- `public/` — assets públicos (ex.: `favico.svg`, `LRM Solutions Logo.png`).
-- `package.json` — scripts (dev/build/lint) e dependências.
-
-Instalação e execução
-
-Observação importante: o repositório contém `pnpm-lock.yaml`. Recomenda-se usar `pnpm` para manter o lockfile. Se `pnpm` não estiver disponível, use `npm` com a flag `--legacy-peer-deps` por conta de conflitos de peer-deps observados (React 19 vs alguns pacotes).
-
-Instalar dependências (pnpm):
-
-```bash
-pnpm install
-```
-
-Ou (fallback com npm):
-
-```bash
-npm install --legacy-peer-deps
-```
-
-Variáveis de ambiente
----------------------
-
-1. Crie um arquivo `.env.local` na raiz do projeto.
-2. Defina pelo menos a variável abaixo (ajuste o host conforme o ambiente backend):
-
-   ```env
-   NEXT_PUBLIC_API_BASE_URL=https://localhost:3333
+1. **Instale as dependências**
+   ```bash
+   pnpm install
+   ```
+2. **Configure as variáveis de ambiente**
+   ```bash
+   cp .env.example .env.local
+   ```
+   Atualize `NEXT_PUBLIC_API_BASE_URL` para o endereço correto da API antes de iniciar o projeto.
+3. **Suba o ambiente de desenvolvimento**
+   ```bash
+   pnpm dev
    ```
 
-O Next.js carrega automaticamente esse arquivo em tempo de desenvolvimento e build. Sempre que o endereço da API mudar, atualize o valor antes de iniciar o projeto.
+> Caso não tenha `pnpm`, você pode usar `npm install --legacy-peer-deps` e os scripts equivalentes com `npm run ...`, mas o fluxo oficial do projeto utiliza `pnpm`.
 
-Gerar tipos do OpenAPI
-----------------------
+## Scripts úteis
 
-Os tipos TypeScript do backend são gerados a partir do arquivo `Documentacao Backend/swagger.json` usando `openapi-typescript`.
+| Comando | Descrição |
+| --- | --- |
+| `pnpm dev` | Inicia o servidor de desenvolvimento do Next.js. |
+| `pnpm build` | Gera o build de produção. |
+| `pnpm start` | Sobe o build de produção localmente. |
+| `pnpm lint` | Executa o lint com ESLint. |
+| `pnpm test` | Executa a suíte de testes unitários com Vitest e Testing Library. |
+| `pnpm generate:openapi` | Gera os tipos TypeScript a partir do arquivo `Documentacao Backend/swagger.json`. |
 
-```bash
-npm run generate:openapi
-```
+## Testes automatizados
 
-> Caso prefira `pnpm`, o comando equivalente também está disponível (`pnpm generate:openapi`). Certifique-se de que o arquivo `Documentacao Backend/swagger.json` esteja atualizado antes de rodar o comando.
+O projeto utiliza **Vitest** com **Testing Library** para validar componentes React.
 
-Rodar em modo de desenvolvimento:
+- Execute `pnpm test` para rodar a suíte completa.
+- Você pode passar flags extras do Vitest, por exemplo `pnpm test --run` para execução non-interativa em CI ou `pnpm test --watch` durante o desenvolvimento.
+- Os testes utilizam um ambiente `jsdom` e incluem matchers do `@testing-library/jest-dom` configurados em `vitest.setup.ts`.
 
-```bash
-npm run dev
-# ou
-pnpm dev
-```
+## Geração do client OpenAPI e uso do Swagger
 
-Build de produção e start:
+1. O arquivo `Documentacao Backend/swagger.json` deve estar sincronizado com o backend. Baixe-o a partir do Swagger do serviço (ex.: `http://localhost:3333/docs` > botão **Download JSON**) e sobrescreva o arquivo local quando houver mudanças na API.
+2. Gere os tipos TypeScript com:
+   ```bash
+   pnpm generate:openapi
+   ```
+   Os tipos são salvos em `src/types/openapi.ts` e podem ser importados em features que consomem a API.
+3. Para explorar os contratos durante o desenvolvimento, abra o Swagger do backend no navegador (ex.: `http://localhost:3333/docs`). Use-o para validar payloads antes de implementar mutations e para manter o JSON atualizado.
 
-```bash
-npm run build
-npm start
-```
+## Estrutura principal
 
-Lint:
+- `app/` — rotas do App Router, layout global (`app/layout.tsx`) e estilos globais (`app/globals.css`).
+- `components/` — primitives UI compartilhadas (`components/ui/*`) e utilitários visuais.
+- `src/features/` — módulos de domínio (clientes, faturas, contratos, etc.), cada um com componentes, hooks e APIs específicos.
+- `src/lib/` — funções utilitárias (ex.: validações de CNPJ).
+- `public/` — assets públicos, ícones e logos.
 
-```bash
-npm run lint
-```
+## Notas operacionais
 
-Quirks e notas operacionais
+- O projeto usa React 19 e alguns pacotes (ex.: `vaul`) ainda declaram peer-dependency em React 16/17/18. Se o `pnpm install` ou `npm install` falhar, use a flag `--legacy-peer-deps` ou mantenha o uso de `pnpm`.
+- Tailwind CSS v4 está configurado em `app/globals.css` com tokens de tema. Ajustes globais de estilo devem ser centralizados ali.
+- Os componentes client importantes, como `components/crm-dashboard.tsx`, dependem de hooks do lado do cliente. Evite movê-los para contextos server.
 
-- React 19 está listado no `package.json`. Em instalações anteriores houve conflito de peer-deps com `vaul@0.9.9` (espera React 16/17/18). Se o `npm install` falhar, use `--legacy-peer-deps` ou instale via `pnpm`.
-- O projeto usa Tailwind CSS v4 e plugins; verifique `app/globals.css` para tokens de tema e `@layer base` onde algumas regras globais são aplicadas.
-- `components/crm-dashboard.tsx` é um componente client (usa `"use client"`). Evite mover hooks de client para componentes de servidor.
+## Checklist de qualidade (obrigatório antes de abrir PR)
 
-Contribuição e convenções
+- [ ] `pnpm lint` sem erros ou warnings relevantes.
+- [ ] `pnpm test` com todos os testes passando.
+- [ ] `pnpm build` para garantir que o Next.js compila com sucesso.
+- [ ] Documentação atualizada (README, comentários importantes e links para Swagger/OpenAPI).
+- [ ] TODOs revisados: sinalize novos pontos no README ou no código com comentários claros.
 
-- Estilização: sempre prefira compor com `components/ui/*` em vez de criar classes duplicadas. Exemplos:
-  - Use `<Card>` e `<Button>` em `components/ui/` para manter consistência.
-- Assets: coloque imagens e ícones em `public/` e referencie por caminho absoluto (ex.: `/favico.svg`).
-- Idioma: o layout global define `lang="pt-BR"` — prefira conteúdo em português quando fizer sentido.
+## TODOs rastreados
 
-Checklist rápido para PRs (sugestão)
+- **Oportunidades (em construção)** — manter o menu lateral desativado até que o módulo esteja pronto. Ver comentários em `src/features/layout/sidebar.tsx` apontando onde o item deve ser reativado e qual rota (`/opportunities`) deverá ser criada quando o fluxo estiver implementado.
 
-- Rodar `npm run lint` e corrigir problemas.
-- Rodar `npm run build` para garantir que não há erros de compilação.
-- Manter PRs pequenos e focados: separar alterações de estilo, refatoração e features.
+## Perguntas frequentes / troubleshooting
 
-Atenção ao atualizar dependências
-
-- Não atualize Next.js ou React sem checar compatibilidade das dependências (muitos pacotes Radix, plugins Tailwind e bibliotecas UI podem quebrar com upgrades maiores).
-
-Como mudar tema / favicon / logo
-
-- Favicon/meta-icon: `app/layout.tsx` exporta `metadata` e referência a `icons.icon` (ex.: `/favico.svg`). Substitua o arquivo em `public/` ou atualize o caminho.
-- Logo: armazenar em `public/` (ex.: `LRM Solutions Logo.png`) e referenciar em `components/crm-dashboard.tsx`.
-- Cores e tokens: usar `app/globals.css` (variáveis CSS) e classes Tailwind. Exemplos de alterações de gradiente estão em `components/crm-dashboard.tsx`.
-
-Perguntas frequentes / troubleshooting
-
-Q: `npm run dev` falha com "next: command not found"?
-A: Significa que as dependências não foram instaladas. Rode `pnpm install` ou `npm install --legacy-peer-deps`.
-
-Q: Devo commitar `pnpm-lock.yaml`?
-A: Sim — se você usar `pnpm` prefira manter o lockfile. Se só tiver `npm`, commit do `package-lock.json` é padrão, mas esse repo já tem `pnpm-lock.yaml`.
-
-Contato
-
-Se quiser, posso adicionar um checklist automatizado para PRs (workflow GitHub Actions) que rode lint e build — quer que eu crie um exemplo?
+- *Instalação falhando por conflito de peer-deps?* Utilize `pnpm` ou rode `npm install --legacy-peer-deps`.
+- *`pnpm dev` não encontra o comando `next`?* Confirme que as dependências foram instaladas.
+- *Precisa trocar favicon, logo ou cores?* Ajuste `public/`, `app/layout.tsx` e as variáveis em `app/globals.css`.
 
 ---
 
