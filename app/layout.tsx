@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${figtree.variable} antialiased`} suppressHydrationWarning>
-      <body className="font-sans">
+      <body className="font-sans" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>
