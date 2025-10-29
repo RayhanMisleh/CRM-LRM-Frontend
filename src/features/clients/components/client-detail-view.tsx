@@ -33,6 +33,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { useRouter } from 'next/navigation'
+
 import { toast } from '@/hooks/use-toast'
 
 import { PageHeader } from '@/features/layout/header/page-header'
@@ -166,6 +168,7 @@ const tagsToString = (tags?: string[] | null) => tags?.join(', ') ?? ''
 
 const sanitizeEmpty = (value?: string | null) => (value ? value : undefined)
 export function ClientDetailView({ clientId, initialData }: ClientDetailViewProps) {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('overview')
   const [contactModal, setContactModal] = useState<{ open: boolean; editing?: ClientContact }>({ open: false })
@@ -1089,7 +1092,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
             title="Reuniões"
             description="Histórico de reuniões e próximos encontros."
             actionLabel="Nova reunião"
-            onAction={() => setMeetingModal({ open: true })}
+            onAction={() => router.push(`/meetings?clientId=${clientId}&new=1`)}
           />
           {renderTable(meetingsTable, meetingsQuery.isLoading)}
         </TabsContent>
