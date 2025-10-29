@@ -32,7 +32,6 @@ Thumbs.db
 # pnpm
 .pnpm-hidden/
 .pnpm-store/v3
-pnpm-lock.yaml
 
 # Optional npm lockfile (if generated locally)
 package-lock.json

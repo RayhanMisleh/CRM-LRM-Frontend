@@ -18,6 +18,12 @@ import {
 
 import { cn } from '@/lib/utils'
 
+/**
+ * TODO(Oportunidades): assim que o módulo de oportunidades estiver disponível,
+ * adicionar novamente o item de menu para `/opportunities` neste array e
+ * apontar a rota correspondente em `src/app`. O comentário serve como guia de
+ * entrada para quem for ativar o fluxo (ver README em "TODOs rastreados").
+ */
 const navigationItems = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/clients', label: 'Clientes', icon: Users },
