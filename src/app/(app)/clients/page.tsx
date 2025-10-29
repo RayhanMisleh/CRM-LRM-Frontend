@@ -1,8 +1,33 @@
+'use client'
+
+import { useCallback, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
+import { CreateClientDialog } from '@/features/clients/components/create-client-dialog'
+import { ClientsTable } from '@/features/clients/components/clients-table'
+import { EditClientDialog } from '@/features/clients/components/edit-client-dialog'
+import type { Client } from '@/features/clients/api'
 import { PageHeader } from '@/features/layout/header/page-header'
-import { EmptyPlaceholder } from '@/features/layout/empty-placeholder'
 
 export default function ClientsPage() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+
+  const openCreateDialog = useCallback(() => setIsCreateOpen(true), [])
+
+  const handleEditClient = useCallback((client: Client) => {
+    setSelectedClient(client)
+    setIsEditOpen(true)
+  }, [])
+
+  const handleEditOpenChange = useCallback((open: boolean) => {
+    setIsEditOpen(open)
+    if (!open) {
+      setSelectedClient(null)
+    }
+  }, [])
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -10,23 +35,23 @@ export default function ClientsPage() {
         description="Organize o pipeline de relacionamento e acompanhe informações essenciais de cada conta."
         breadcrumbs={[{ href: '/dashboard', label: 'Dashboard' }, { label: 'Clientes' }]}
         actions={
-          <Button className="rounded-2xl border border-white/20 bg-white/15 text-white hover:border-white/30 hover:bg-white/25">
+          <Button
+            onClick={openCreateDialog}
+            className="rounded-2xl border border-white/20 bg-white/15 text-white hover:border-white/30 hover:bg-white/25"
+          >
             Adicionar cliente
           </Button>
         }
       />
 
-      <EmptyPlaceholder
-        title="Nenhum cliente cadastrado ainda"
-        description="Importe uma planilha ou crie manualmente seus primeiros clientes para iniciar os acompanhamentos."
-      >
-        <Button variant="ghost" className="rounded-2xl text-white/80 hover:bg-white/10">
-          Importar planilha
-        </Button>
-        <Button className="rounded-2xl border border-white/20 bg-white/15 text-white hover:border-white/30 hover:bg-white/25">
-          Criar cliente
-        </Button>
-      </EmptyPlaceholder>
+      <ClientsTable onCreateClient={openCreateDialog} onEditClient={handleEditClient} />
+
+      <CreateClientDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      <EditClientDialog
+        open={isEditOpen}
+        onOpenChange={handleEditOpenChange}
+        client={selectedClient ?? undefined}
+      />
     </div>
   )
 }
