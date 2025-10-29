@@ -21,7 +21,7 @@ export type ClientStatus =
   | 'churned'
   | string
 
-export interface ClientContact {
+export interface ClientResponsible {
   name?: string | null
   email?: string | null
   phone?: string | null
@@ -32,17 +32,42 @@ export interface Client {
   id: string
   companyName: string
   tradeName?: string | null
-  cnpj: string
+  cnpj?: string | null
   email?: string | null
   phone?: string | null
   status: ClientStatus
   segment?: string | null
   tags?: string[]
   notes?: string | null
-  responsible?: ClientContact | null
+  responsible?: ClientResponsible | null
   lastInteractionAt?: string | null
   createdAt: string
   updatedAt?: string | null
+}
+
+type ApiClientStatus = 'LEAD' | 'PROSPECT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
+
+interface ApiClient {
+  id: string
+  empresaId?: string | null
+  externalId?: string | null
+  name: string
+  email?: string | null
+  phone?: string | null
+  status: ApiClientStatus
+  tags?: string[]
+  notes?: string | null
+  meta?: Record<string, unknown> | null
+  createdAt: string
+  updatedAt?: string | null
+}
+
+interface ClientMeta {
+  tradeName?: string | null
+  segment?: string | null
+  responsible?: ClientResponsible | null
+  document?: string | null
+  lastInteractionAt?: string | null
 }
 
 export interface ClientContact {
@@ -201,11 +226,113 @@ export type CreateClientInput = {
   segment?: string | null
   tags?: string[]
   notes?: string | null
-  responsible?: ClientContact | null
+  responsible?: ClientResponsible | null
 }
 
 export type UpdateClientInput = CreateClientInput & { id: string }
 export type UpdateClientTagsInput = { id: string; tags: string[] }
+
+const STATUS_TO_API: Record<string, ApiClientStatus> = {
+  lead: 'LEAD',
+  prospect: 'PROSPECT',
+  active: 'ACTIVE',
+  inactive: 'INACTIVE',
+  churned: 'ARCHIVED',
+}
+
+const STATUS_FROM_API: Record<ApiClientStatus, ClientStatus> = {
+  LEAD: 'lead',
+  PROSPECT: 'prospect',
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  ARCHIVED: 'churned',
+}
+
+const normalizeOptionalString = (value?: string | null) => {
+  if (value === undefined || value === null) return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+const mapStatusToApi = (status?: ClientStatus): ApiClientStatus => {
+  if (!status) return 'ACTIVE'
+  const normalized = status.toString().toLowerCase()
+  return STATUS_TO_API[normalized] ?? 'ACTIVE'
+}
+
+const mapStatusFromApi = (status: ApiClientStatus): ClientStatus => {
+  return STATUS_FROM_API[status] ?? 'active'
+}
+
+const buildClientMetaPayload = (input: CreateClientInput): ClientMeta | undefined => {
+  const meta: ClientMeta = {}
+
+  if (input.tradeName) meta.tradeName = input.tradeName
+  if (input.segment) meta.segment = input.segment
+  if (input.responsible) meta.responsible = input.responsible
+  if (input.cnpj) meta.document = input.cnpj
+
+  return Object.keys(meta).length > 0 ? meta : undefined
+}
+
+const mapApiClientToClient = (client: ApiClient): Client => {
+  const meta = (client.meta ?? {}) as ClientMeta
+
+  return {
+    id: client.id,
+    companyName: client.name,
+    tradeName: meta.tradeName ?? null,
+    cnpj: meta.document ?? undefined,
+    email: normalizeOptionalString(client.email),
+    phone: normalizeOptionalString(client.phone),
+    status: mapStatusFromApi(client.status),
+    segment: meta.segment ?? null,
+    tags: client.tags ?? [],
+    notes: normalizeOptionalString(client.notes),
+    responsible: meta.responsible ?? null,
+    lastInteractionAt: meta.lastInteractionAt ?? null,
+    createdAt: client.createdAt,
+    updatedAt: client.updatedAt ?? null,
+  }
+}
+
+const mapClientInputToApiPayload = (input: CreateClientInput) => {
+  const payload: Record<string, unknown> = {
+    name: input.companyName,
+    status: mapStatusToApi(input.status),
+  }
+
+  const document = normalizeOptionalString(input.cnpj)
+  if (document) {
+    payload.document = document
+  }
+
+  const email = normalizeOptionalString(input.email)
+  if (email) {
+    payload.email = email
+  }
+
+  const phone = normalizeOptionalString(input.phone)
+  if (phone) {
+    payload.phone = phone
+  }
+
+  const notes = normalizeOptionalString(input.notes)
+  if (notes) {
+    payload.notes = notes
+  }
+
+  if (input.tags && input.tags.length > 0) {
+    payload.tags = input.tags
+  }
+
+  const meta = buildClientMetaPayload(input)
+  if (meta) {
+    payload.meta = meta
+  }
+
+  return payload
+}
 
 const buildSearchParams = (filters: Record<string, unknown>) => {
   const params = new URLSearchParams()
@@ -240,7 +367,11 @@ const queryKeys = {
 
 const fetchClient = async (id: string) => {
   const response = await clientsApi.get(`clients/${id}`)
-  return (await response.json()) as Client
+  const json = (await response.json()) as { data?: ApiClient }
+  if (!json?.data) {
+    throw new Error('Resposta inesperada ao carregar cliente.')
+  }
+  return mapApiClientToClient(json.data)
 }
 
 export const getClient = cache(async (id: string) => {
@@ -250,22 +381,41 @@ export const getClient = cache(async (id: string) => {
 const fetchClients = async (filters: ClientListFilters = {}) => {
   const searchParams = buildSearchParams(filters)
   const response = await clientsApi.get('clients', { searchParams })
-  return (await response.json()) as ClientListResponse
+  const json = (await response.json()) as { data?: ApiClient[]; meta: ClientListMeta }
+
+  return {
+    data: (json.data ?? []).map(mapApiClientToClient),
+    meta: json.meta,
+  }
 }
 
 const createClient = async (input: CreateClientInput) => {
-  const response = await clientsApi.post('clients', { json: input })
-  return (await response.json()) as Client
+  const payload = mapClientInputToApiPayload(input)
+  const response = await clientsApi.post('clients', { json: payload })
+  const json = (await response.json()) as { data?: ApiClient }
+  if (!json?.data) {
+    throw new Error('Resposta inesperada ao criar cliente.')
+  }
+  return mapApiClientToClient(json.data)
 }
 
 const updateClient = async ({ id, ...input }: UpdateClientInput) => {
-  const response = await clientsApi.put(`clients/${id}`, { json: input })
-  return (await response.json()) as Client
+  const payload = mapClientInputToApiPayload(input)
+  const response = await clientsApi.put(`clients/${id}`, { json: payload })
+  const json = (await response.json()) as { data?: ApiClient }
+  if (!json?.data) {
+    throw new Error('Resposta inesperada ao atualizar cliente.')
+  }
+  return mapApiClientToClient(json.data)
 }
 
 const updateClientTags = async ({ id, tags }: UpdateClientTagsInput) => {
   const response = await clientsApi.patch(`clients/${id}`, { json: { tags } })
-  return (await response.json()) as Client
+  const json = (await response.json()) as { data?: ApiClient }
+  if (!json?.data) {
+    throw new Error('Resposta inesperada ao atualizar tags.')
+  }
+  return mapApiClientToClient(json.data)
 }
 
 const deleteClient = async (id: string) => {

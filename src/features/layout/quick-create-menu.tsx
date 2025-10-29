@@ -29,7 +29,7 @@ export function QuickCreateMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="rounded-2xl border border-white/20 bg-white/15 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:border-white/30 hover:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/60">
+        <Button className="rounded-full border border-white/15 bg-white/10 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:border-white/25 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/60">
           <Plus className="mr-2 h-4 w-4" aria-hidden />
           Criar
         </Button>

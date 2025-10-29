@@ -1,6 +1,7 @@
-'use client'
+"use client"
 
 import { useMemo } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
@@ -45,11 +46,21 @@ export function Sidebar() {
   const activeSegment = useMemo(() => pathname?.split('?')[0], [pathname])
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col gap-8 overflow-y-auto border-r border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl lg:flex" aria-label="Navegação principal">
+    <aside
+      className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col gap-8 overflow-y-auto border-r border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl lg:flex"
+      aria-label="Navegação principal"
+    >
       <div className="space-y-6">
         <div className="text-center">
-          <div className="mb-2 flex items-center justify-center">
-            <img src="/LRM Solutions Logo.png" alt="LRM Solutions" className="h-12 w-auto" />
+          <div className="mb-3 flex items-center justify-center">
+            <Image
+              src="/LRM_logo.webp"
+              alt="LRM Software Solutions"
+              width={136}
+              height={40}
+              priority
+              className="h-12 w-auto"
+            />
           </div>
           <p className="text-sm text-white/60">Customer Management</p>
         </div>
@@ -74,13 +85,6 @@ export function Sidebar() {
             )
           })}
         </nav>
-      </div>
-
-      <div className="mt-auto space-y-2 border-t border-white/10 pt-4 text-sm text-white/60">
-        <p className="font-semibold text-white/80">Precisa de ajuda?</p>
-        <p>
-          Entre em contato com o time de suporte para qualquer dúvida sobre o CRM ou fluxos de trabalho.
-        </p>
       </div>
     </aside>
   )
