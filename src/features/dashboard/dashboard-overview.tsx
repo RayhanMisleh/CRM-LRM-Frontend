@@ -205,7 +205,7 @@ export function DashboardOverview() {
       label: 'Emitir fatura',
       description: 'Gere uma nova cobrança para o cliente.',
       icon: FileText,
-      href: '/invoices/new',
+      href: '/invoices?create=manual',
     },
     {
       label: 'Marcar reunião',

@@ -18,7 +18,7 @@ const quickLinks = [
   { href: '/clients/new', label: 'Novo cliente', icon: UserPlus },
   { href: '/contracts/new', label: 'Novo contrato', icon: FileSignature },
   { href: '/meetings/new', label: 'Agendar reunião', icon: CalendarPlus },
-  { href: '/invoices/new', label: 'Emitir fatura', icon: FileText },
+  { href: '/invoices?create=manual', label: 'Emitir fatura', icon: FileText },
 ] as const
 
 const secondaryLinks = [
