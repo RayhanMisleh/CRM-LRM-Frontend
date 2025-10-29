@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { keepPreviousData, useQuery, type QueryKey } from '@tanstack/react-query'
 
-import { createApiClient } from '@/lib/api'
+import { createApiClient, type ApiHttpError } from '@/lib/api'
 
 const dashboardApi = createApiClient()
 
@@ -83,22 +83,52 @@ const queryKeys = {
   upcomingMeetings: (filters: UpcomingMeetingsFilters = {}): QueryKey => ['dashboard', 'upcoming-meetings', filters],
 } as const
 
+const isApiHttpError = (error: unknown): error is ApiHttpError =>
+  typeof error === 'object' && error !== null && 'status' in error
+
 const fetchInvoiceStats = async (filters: InvoiceStatsFilters = {}) => {
   const searchParams = buildSearchParams({ status: filters.status, dueIn: filters.dueInDays })
-  const response = await dashboardApi.get('dashboard/invoices/stats', { searchParams })
-  return (await response.json()) as InvoiceStatsResponse
+
+  try {
+    const response = await dashboardApi.get('dashboard/invoices/stats', { searchParams })
+    return (await response.json()) as InvoiceStatsResponse
+  } catch (error) {
+    if (isApiHttpError(error) && error.status === 404) {
+      return { currency: 'BRL', summaries: [] }
+    }
+
+    throw error
+  }
 }
 
 const fetchDomainExpirations = async (filters: DomainExpirationsFilters = {}) => {
   const searchParams = buildSearchParams({ status: filters.status, dueInHours: filters.dueInHours })
-  const response = await dashboardApi.get('dashboard/domains/expirations', { searchParams })
-  return (await response.json()) as DomainExpiration[]
+
+  try {
+    const response = await dashboardApi.get('dashboard/domains/expirations', { searchParams })
+    return (await response.json()) as DomainExpiration[]
+  } catch (error) {
+    if (isApiHttpError(error) && error.status === 404) {
+      return []
+    }
+
+    throw error
+  }
 }
 
 const fetchUpcomingMeetings = async (filters: UpcomingMeetingsFilters = {}) => {
   const searchParams = buildSearchParams({ status: filters.status, withinHours: filters.withinHours })
-  const response = await dashboardApi.get('dashboard/meetings/upcoming', { searchParams })
-  return (await response.json()) as UpcomingMeeting[]
+
+  try {
+    const response = await dashboardApi.get('dashboard/meetings/upcoming', { searchParams })
+    return (await response.json()) as UpcomingMeeting[]
+  } catch (error) {
+    if (isApiHttpError(error) && error.status === 404) {
+      return []
+    }
+
+    throw error
+  }
 }
 
 export const useInvoiceStats = (filters: InvoiceStatsFilters = {}) => {
