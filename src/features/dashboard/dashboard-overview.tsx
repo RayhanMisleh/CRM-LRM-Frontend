@@ -217,7 +217,7 @@ export function DashboardOverview() {
       label: 'Adicionar domínio',
       description: 'Controle renovações de DNS críticos.',
       icon: Globe,
-      href: '/domains/new',
+      href: '/domains?create=1',
     },
     {
       label: 'Novo contato',
@@ -281,7 +281,7 @@ export function DashboardOverview() {
           }}
           action={{
             label: 'Ver todos',
-            onClick: () => router.push('/domains?dueIn=72'),
+            onClick: () => router.push('/domains?dueIn=7'),
           }}
         />
       </section>
