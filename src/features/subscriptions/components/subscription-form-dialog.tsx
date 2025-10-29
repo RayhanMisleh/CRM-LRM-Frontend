@@ -108,6 +108,10 @@ const defaultValues: SubscriptionFormValues = {
   renewsAt: undefined,
 }
 
+const SELECT_CLIENT_PLACEHOLDER_VALUE = '__SUBSCRIPTION_SELECT_CLIENT__'
+const NO_CONTRACT_OPTION_VALUE = '__SUBSCRIPTION_NO_CONTRACT__'
+const NO_BILLING_CYCLE_OPTION_VALUE = '__SUBSCRIPTION_NO_CYCLE__'
+
 const normalizeSubscriptionToForm = (
   subscription?: Subscription | null,
 ): SubscriptionFormValues => {
@@ -211,9 +215,15 @@ export function SubscriptionFormDialog({
                     <FormLabel>Cliente</FormLabel>
                     <FormControl>
                       <Select
-                        value={field.value}
+                        value={
+                          field.value && field.value !== ''
+                            ? field.value
+                            : SELECT_CLIENT_PLACEHOLDER_VALUE
+                        }
                         onValueChange={(value) => {
-                          field.onChange(value)
+                          const nextValue =
+                            value === SELECT_CLIENT_PLACEHOLDER_VALUE ? '' : value
+                          field.onChange(nextValue)
                           form.setValue('contractId', undefined)
                         }}
                       >
@@ -221,7 +231,9 @@ export function SubscriptionFormDialog({
                           <SelectValue placeholder="Selecione o cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Selecione o cliente</SelectItem>
+                          <SelectItem value={SELECT_CLIENT_PLACEHOLDER_VALUE}>
+                            Selecione o cliente
+                          </SelectItem>
                           {clients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
                               {client.name}
@@ -243,15 +255,25 @@ export function SubscriptionFormDialog({
                     <FormLabel>Contrato</FormLabel>
                     <FormControl>
                       <Select
-                        value={field.value ?? ''}
-                        onValueChange={(value) => field.onChange(value || undefined)}
+                        value={
+                          field.value && field.value !== ''
+                            ? field.value
+                            : NO_CONTRACT_OPTION_VALUE
+                        }
+                        onValueChange={(value) =>
+                          field.onChange(
+                            value === NO_CONTRACT_OPTION_VALUE || value === ''
+                              ? undefined
+                              : value,
+                          )
+                        }
                         disabled={contractsLoading || contractOptions.length === 0}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Sem contrato" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Sem contrato</SelectItem>
+                          <SelectItem value={NO_CONTRACT_OPTION_VALUE}>Sem contrato</SelectItem>
                           {contractOptions.map((contract) => (
                             <SelectItem key={contract.id} value={contract.id}>
                               {contract.title}
@@ -300,14 +322,26 @@ export function SubscriptionFormDialog({
                     <FormLabel>Ciclo de cobrança</FormLabel>
                     <FormControl>
                       <Select
-                        value={field.value ?? ''}
-                        onValueChange={(value) => field.onChange(value || undefined)}
+                        value={
+                          field.value && field.value !== ''
+                            ? field.value
+                            : NO_BILLING_CYCLE_OPTION_VALUE
+                        }
+                        onValueChange={(value) =>
+                          field.onChange(
+                            value === NO_BILLING_CYCLE_OPTION_VALUE || value === ''
+                              ? undefined
+                              : value,
+                          )
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o ciclo" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Sem ciclo definido</SelectItem>
+                          <SelectItem value={NO_BILLING_CYCLE_OPTION_VALUE}>
+                            Sem ciclo definido
+                          </SelectItem>
                           {SUBSCRIPTION_CYCLE_OPTIONS.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}

@@ -95,6 +95,8 @@ const defaultValues: ContractFormValues = {
   arquivoPdfUrl: undefined,
 }
 
+const NO_BILLING_CYCLE_VALUE = '__CONTRACT_NO_BILLING__'
+
 const normalizeContractToForm = (contract?: Contract | null): ContractFormValues => {
   if (!contract) return defaultValues
 
@@ -297,14 +299,22 @@ export function ContractFormDialog({
                     <FormLabel>Ciclo de cobrança</FormLabel>
                     <FormControl>
                       <Select
-                        value={field.value ?? ''}
-                        onValueChange={(value) => field.onChange(value || undefined)}
+                        value={
+                          field.value && field.value !== ''
+                            ? field.value
+                            : NO_BILLING_CYCLE_VALUE
+                        }
+                        onValueChange={(value) =>
+                          field.onChange(
+                            value === NO_BILLING_CYCLE_VALUE || value === '' ? undefined : value,
+                          )
+                        }
                       >
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Sem recorrência</SelectItem>
+                          <SelectItem value={NO_BILLING_CYCLE_VALUE}>Sem recorrência</SelectItem>
                           {CONTRACT_BILLING_CYCLE_OPTIONS.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}

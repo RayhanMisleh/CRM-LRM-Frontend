@@ -7,10 +7,6 @@ import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { addMinutes, format, parseISO } from 'date-fns'
 
-import '@fullcalendar/core/index.css'
-import '@fullcalendar/daygrid/index.css'
-import '@fullcalendar/timegrid/index.css'
-
 import type { Meeting } from '../api'
 
 const EVENT_DEFAULT_DURATION = 60

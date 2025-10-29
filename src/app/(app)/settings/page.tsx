@@ -38,6 +38,8 @@ const billingCycleOptions = [
   { label: 'Anual', value: 'yearly' },
 ]
 
+const BILLING_CYCLE_EMPTY_VALUE = '__BILLING_CYCLE_EMPTY__'
+
 const planFormSchema = z.object({
   id: z.string().optional(),
   name: z
@@ -436,13 +438,25 @@ export default function SettingsPage() {
                       <FormItem>
                         <FormLabel>Ciclo de cobrança</FormLabel>
                         <FormControl>
-                          <Select onValueChange={(value) => field.onChange(value)} value={field.value ?? ''}>
+                          <Select
+                            onValueChange={(value) =>
+                              field.onChange(value === BILLING_CYCLE_EMPTY_VALUE ? '' : value)
+                            }
+                            value={
+                              field.value && field.value.trim() !== ''
+                                ? field.value
+                                : BILLING_CYCLE_EMPTY_VALUE
+                            }
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione um ciclo" />
                             </SelectTrigger>
                             <SelectContent>
                               {billingCycleOptions.map((option) => (
-                                <SelectItem key={option.value || 'empty'} value={option.value}>
+                                <SelectItem
+                                  key={option.value || 'empty'}
+                                  value={option.value === '' ? BILLING_CYCLE_EMPTY_VALUE : option.value}
+                                >
                                   {option.label}
                                 </SelectItem>
                               ))}

@@ -146,6 +146,8 @@ const formatDate = (value?: string | null) => {
 }
 
 const skeletonRows = Array.from({ length: 5 }, (_, index) => index)
+const ALL_CLIENTS_OPTION_VALUE = '__ALL_CONTRACT_CLIENTS__'
+const ALL_STATUS_OPTION_VALUE = '__ALL_CONTRACT_STATUS__'
 
 export function ContractsPage() {
   const router = useRouter()
@@ -483,9 +485,10 @@ export function ContractsPage() {
                   <FormLabel>Cliente</FormLabel>
                   <FormControl>
                     <Select
-                      value={field.value}
+                      value={field.value ? field.value : ALL_CLIENTS_OPTION_VALUE}
                       onValueChange={(value) => {
-                        field.onChange(value)
+                        const nextValue = value === ALL_CLIENTS_OPTION_VALUE ? '' : value
+                        field.onChange(nextValue)
                         form.setValue('page', 1)
                       }}
                       disabled={clientsQuery.isLoading}
@@ -494,7 +497,7 @@ export function ContractsPage() {
                         <SelectValue placeholder="Todos os clientes" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos os clientes</SelectItem>
+                        <SelectItem value={ALL_CLIENTS_OPTION_VALUE}>Todos os clientes</SelectItem>
                         {clientOptions.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name}
@@ -515,9 +518,10 @@ export function ContractsPage() {
                   <FormLabel>Status</FormLabel>
                   <FormControl>
                     <Select
-                      value={field.value}
+                      value={field.value ? field.value : ALL_STATUS_OPTION_VALUE}
                       onValueChange={(value) => {
-                        field.onChange(value)
+                        const nextValue = value === ALL_STATUS_OPTION_VALUE ? '' : value
+                        field.onChange(nextValue)
                         form.setValue('page', 1)
                       }}
                     >
@@ -525,7 +529,7 @@ export function ContractsPage() {
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
+                        <SelectItem value={ALL_STATUS_OPTION_VALUE}>Todos</SelectItem>
                         {CONTRACT_STATUS_OPTIONS.map((status) => (
                           <SelectItem key={status.value} value={status.value}>
                             {status.label}

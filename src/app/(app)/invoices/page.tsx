@@ -35,6 +35,10 @@ import { useContracts } from '@/features/contracts/api'
 import { toast } from '@/hooks/use-toast'
 
 const DEFAULT_INVOICE_PAGE_SIZE = 10
+const ALL_STATUS_OPTION_VALUE = '__ALL_INVOICE_STATUS__'
+const ALL_CLIENTS_OPTION_VALUE = '__ALL_INVOICE_CLIENTS__'
+const ALL_DUE_OPTION_VALUE = '__ALL_INVOICE_DUE__'
+const ALL_PERIOD_OPTION_VALUE = '__ALL_INVOICE_PERIOD__'
 
 const filtersSchema = z.object({
   status: z.string().optional().or(z.literal('')).catch(''),
@@ -375,11 +379,12 @@ export default function InvoicesPage() {
                 <FormItem>
                   <FormLabel>Status</FormLabel>
                   <Select
-                    value={field.value}
+                    value={field.value ? field.value : ALL_STATUS_OPTION_VALUE}
                     onValueChange={(value) => {
-                      field.onChange(value)
+                      const nextValue = value === ALL_STATUS_OPTION_VALUE ? '' : value
+                      field.onChange(nextValue)
                       form.setValue('page', 1)
-                      if (value !== 'paid') {
+                      if (nextValue !== 'paid') {
                         form.setValue('period', '')
                       }
                     }}
@@ -390,7 +395,7 @@ export default function InvoicesPage() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="rounded-2xl border-white/15 bg-background/95 backdrop-blur">
-                      <SelectItem value="">Todos os status</SelectItem>
+                      <SelectItem value={ALL_STATUS_OPTION_VALUE}>Todos os status</SelectItem>
                       {INVOICE_STATUS_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
@@ -409,9 +414,10 @@ export default function InvoicesPage() {
                 <FormItem>
                   <FormLabel>Vencimento</FormLabel>
                   <Select
-                    value={field.value}
+                    value={field.value ? field.value : ALL_DUE_OPTION_VALUE}
                     onValueChange={(value) => {
-                      field.onChange(value)
+                      const nextValue = value === ALL_DUE_OPTION_VALUE ? '' : value
+                      field.onChange(nextValue)
                       form.setValue('page', 1)
                     }}
                   >
@@ -421,11 +427,15 @@ export default function InvoicesPage() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="rounded-2xl border-white/15 bg-background/95 backdrop-blur">
-                      {INVOICE_DUE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                      {INVOICE_DUE_OPTIONS.map((option) => {
+                        const optionValue = option.value === '' ? ALL_DUE_OPTION_VALUE : option.value
+                        const key = option.value === '' ? 'all-due' : option.value
+                        return (
+                          <SelectItem key={key} value={optionValue}>
+                            {option.label}
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                 </FormItem>
@@ -439,9 +449,10 @@ export default function InvoicesPage() {
                 <FormItem>
                   <FormLabel>Cliente</FormLabel>
                   <Select
-                    value={field.value}
+                    value={field.value ? field.value : ALL_CLIENTS_OPTION_VALUE}
                     onValueChange={(value) => {
-                      field.onChange(value)
+                      const nextValue = value === ALL_CLIENTS_OPTION_VALUE ? '' : value
+                      field.onChange(nextValue)
                       form.setValue('page', 1)
                     }}
                   >
@@ -451,7 +462,7 @@ export default function InvoicesPage() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="rounded-2xl border-white/15 bg-background/95 backdrop-blur">
-                      <SelectItem value="">Todos os clientes</SelectItem>
+                      <SelectItem value={ALL_CLIENTS_OPTION_VALUE}>Todos os clientes</SelectItem>
                       {clientOptions.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.name}
@@ -471,9 +482,10 @@ export default function InvoicesPage() {
                   <FormItem>
                     <FormLabel>Período</FormLabel>
                     <Select
-                      value={field.value}
+                      value={field.value ? field.value : ALL_PERIOD_OPTION_VALUE}
                       onValueChange={(value) => {
-                        field.onChange(value)
+                        const nextValue = value === ALL_PERIOD_OPTION_VALUE ? '' : value
+                        field.onChange(nextValue)
                         form.setValue('page', 1)
                       }}
                     >
@@ -483,11 +495,16 @@ export default function InvoicesPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="rounded-2xl border-white/15 bg-background/95 backdrop-blur">
-                        {INVOICE_PERIOD_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
+                        {INVOICE_PERIOD_OPTIONS.map((option) => {
+                          const optionValue =
+                            option.value === '' ? ALL_PERIOD_OPTION_VALUE : option.value
+                          const key = option.value === '' ? 'all-period' : option.value
+                          return (
+                            <SelectItem key={key} value={optionValue}>
+                              {option.label}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   </FormItem>

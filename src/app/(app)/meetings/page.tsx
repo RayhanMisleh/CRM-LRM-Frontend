@@ -36,6 +36,7 @@ import { toast } from '@/hooks/use-toast'
 
 const DEFAULT_NEXT_HOURS = 72
 const DEFAULT_DURATION_MINUTES = 60
+const ALL_CLIENTS_OPTION_VALUE = '__ALL_MEETING_CLIENTS__'
 
 const meetingFormSchema = z.object({
   clientId: z.string().min(1, 'Selecione o cliente'),
@@ -179,7 +180,8 @@ export default function MeetingsPage() {
 
   const handleClientFilterChange = useCallback(
     (value: string) => {
-      const parsed = value || undefined
+      const normalized = value === ALL_CLIENTS_OPTION_VALUE ? '' : value
+      const parsed = normalized || undefined
       setClientFilter(parsed)
 
       const params = new URLSearchParams(searchParams.toString())
@@ -382,7 +384,10 @@ export default function MeetingsPage() {
             <Label htmlFor="client-filter" className="text-sm text-white/70">
               Cliente
             </Label>
-            <Select value={clientFilter ?? ''} onValueChange={handleClientFilterChange}>
+            <Select
+              value={clientFilter ? clientFilter : ALL_CLIENTS_OPTION_VALUE}
+              onValueChange={handleClientFilterChange}
+            >
               <SelectTrigger
                 id="client-filter"
                 className="w-full rounded-full border-white/20 bg-white/10 text-left text-white hover:bg-white/15"
@@ -390,7 +395,7 @@ export default function MeetingsPage() {
                 <SelectValue placeholder="Todos os clientes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os clientes</SelectItem>
+                <SelectItem value={ALL_CLIENTS_OPTION_VALUE}>Todos os clientes</SelectItem>
                 {clientOptions.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name}

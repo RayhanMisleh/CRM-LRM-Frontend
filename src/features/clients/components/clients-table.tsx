@@ -92,7 +92,8 @@ const filtersSchema = z.object({
 
 export type FiltersFormValues = z.infer<typeof filtersSchema>
 
-const statusOptions = [{ label: 'Todos os status', value: '' }, ...CLIENT_STATUS_OPTIONS]
+const STATUS_ALL_VALUE = '__ALL__'
+const statusOptions = CLIENT_STATUS_OPTIONS
 
 const pageSizeOptions = [10, 20, 50, 100]
 
@@ -524,9 +525,10 @@ export function ClientsTable({ onCreateClient, onEditClient }: ClientsTableProps
               <FormItem className="w-full lg:w-48">
                 <FormLabel>Status</FormLabel>
                 <Select
-                  value={field.value ?? ''}
+                  value={field.value ? field.value : STATUS_ALL_VALUE}
                   onValueChange={(value) => {
-                    field.onChange(value)
+                    const nextValue = value === STATUS_ALL_VALUE ? '' : value
+                    field.onChange(nextValue)
                     form.setValue('page', 1)
                   }}
                 >
@@ -536,6 +538,7 @@ export function ClientsTable({ onCreateClient, onEditClient }: ClientsTableProps
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value={STATUS_ALL_VALUE}>Todos os status</SelectItem>
                     {statusOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}

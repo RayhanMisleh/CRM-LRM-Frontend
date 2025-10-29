@@ -44,8 +44,18 @@ const filtersSchema = z.object({
 
 type FiltersFormValues = z.infer<typeof filtersSchema>
 
-const statusFilterOptions = [{ label: 'Todos os status', value: '' }, ...SUBSCRIPTION_STATUS_OPTIONS]
-const cycleFilterOptions = [{ label: 'Todos os ciclos', value: '' }, ...SUBSCRIPTION_CYCLE_OPTIONS]
+const ALL_CLIENTS_OPTION_VALUE = '__ALL_SUBSCRIPTION_CLIENTS__'
+const ALL_STATUS_OPTION_VALUE = '__ALL_SUBSCRIPTION_STATUS__'
+const ALL_CYCLE_OPTION_VALUE = '__ALL_SUBSCRIPTION_CYCLE__'
+
+const statusFilterOptions = [
+  { label: 'Todos os status', value: ALL_STATUS_OPTION_VALUE },
+  ...SUBSCRIPTION_STATUS_OPTIONS,
+]
+const cycleFilterOptions = [
+  { label: 'Todos os ciclos', value: ALL_CYCLE_OPTION_VALUE },
+  ...SUBSCRIPTION_CYCLE_OPTIONS,
+]
 
 export default function SubscriptionsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -257,9 +267,10 @@ export default function SubscriptionsPage() {
                   <FormLabel>Cliente</FormLabel>
                   <FormControl>
                     <Select
-                      value={field.value}
+                      value={field.value ? field.value : ALL_CLIENTS_OPTION_VALUE}
                       onValueChange={(value) => {
-                        field.onChange(value)
+                        const nextValue = value === ALL_CLIENTS_OPTION_VALUE ? '' : value
+                        field.onChange(nextValue)
                         form.setValue('page', 1)
                       }}
                       disabled={clientsQuery.isLoading}
@@ -268,7 +279,7 @@ export default function SubscriptionsPage() {
                         <SelectValue placeholder="Todos os clientes" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos os clientes</SelectItem>
+                        <SelectItem value={ALL_CLIENTS_OPTION_VALUE}>Todos os clientes</SelectItem>
                         {clientOptions.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name}
@@ -289,9 +300,10 @@ export default function SubscriptionsPage() {
                   <FormLabel>Status</FormLabel>
                   <FormControl>
                     <Select
-                      value={field.value}
+                      value={field.value ? field.value : ALL_STATUS_OPTION_VALUE}
                       onValueChange={(value) => {
-                        field.onChange(value)
+                        const nextValue = value === ALL_STATUS_OPTION_VALUE ? '' : value
+                        field.onChange(nextValue)
                         form.setValue('page', 1)
                       }}
                     >
@@ -319,9 +331,10 @@ export default function SubscriptionsPage() {
                   <FormLabel>Ciclo</FormLabel>
                   <FormControl>
                     <Select
-                      value={field.value}
+                      value={field.value ? field.value : ALL_CYCLE_OPTION_VALUE}
                       onValueChange={(value) => {
-                        field.onChange(value)
+                        const nextValue = value === ALL_CYCLE_OPTION_VALUE ? '' : value
+                        field.onChange(nextValue)
                         form.setValue('page', 1)
                       }}
                     >

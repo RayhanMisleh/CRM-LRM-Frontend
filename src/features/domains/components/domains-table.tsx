@@ -121,6 +121,9 @@ interface DomainsTableProps {
 }
 
 const pageSizeOptions = [10, 20, 50]
+const ALL_DOMAIN_STATUS_VALUE = '__ALL_DOMAIN_STATUS__'
+const ALL_DOMAIN_DUE_VALUE = '__ALL_DOMAIN_DUE__'
+const ALL_DOMAIN_CLIENT_VALUE = '__ALL_DOMAIN_CLIENT__'
 const skeletonRows = Array.from({ length: 5 }, (_, index) => index)
 
 export function DomainsTable({
@@ -279,48 +282,71 @@ export function DomainsTable({
       <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-3">
           <Select
-            value={filters.status ?? ''}
-            onValueChange={(value) => onFiltersChange({ status: value || undefined })}
+            value={filters.status ? filters.status : ALL_DOMAIN_STATUS_VALUE}
+            onValueChange={(value) => {
+              const nextValue = value === ALL_DOMAIN_STATUS_VALUE ? undefined : value
+              onFiltersChange({ status: nextValue })
+            }}
           >
             <SelectTrigger className="w-48 bg-background/60">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              {DOMAIN_STATUS_FILTER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              {DOMAIN_STATUS_FILTER_OPTIONS.map((option) => {
+                const optionValue =
+                  option.value === '' ? ALL_DOMAIN_STATUS_VALUE : option.value
+                const key = option.value === '' ? 'all-status' : option.value
+                return (
+                  <SelectItem key={key} value={optionValue}>
+                    {option.label}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
 
           <Select
-            value={filters.dueIn ? String(filters.dueIn) : ''}
-            onValueChange={(value) =>
-              onFiltersChange({ dueIn: value ? Number(value) : undefined })
+            value={
+              filters.dueIn !== undefined && filters.dueIn !== null
+                ? String(filters.dueIn)
+                : ALL_DOMAIN_DUE_VALUE
             }
+            onValueChange={(value) => {
+              if (value === ALL_DOMAIN_DUE_VALUE) {
+                onFiltersChange({ dueIn: undefined })
+                return
+              }
+              onFiltersChange({ dueIn: Number(value) })
+            }}
           >
             <SelectTrigger className="w-52 bg-background/60">
               <SelectValue placeholder="Expira em" />
             </SelectTrigger>
             <SelectContent>
-              {DOMAIN_DUE_FILTER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              {DOMAIN_DUE_FILTER_OPTIONS.map((option) => {
+                const optionValue = option.value === '' ? ALL_DOMAIN_DUE_VALUE : option.value
+                const key = option.value === '' ? 'all-due' : option.value
+                return (
+                  <SelectItem key={key} value={optionValue}>
+                    {option.label}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
 
           <Select
-            value={filters.clientId ?? ''}
-            onValueChange={(value) => onFiltersChange({ clientId: value || undefined })}
+            value={filters.clientId ? filters.clientId : ALL_DOMAIN_CLIENT_VALUE}
+            onValueChange={(value) => {
+              const nextValue = value === ALL_DOMAIN_CLIENT_VALUE ? undefined : value
+              onFiltersChange({ clientId: nextValue })
+            }}
           >
             <SelectTrigger className="w-60 bg-background/60">
               <SelectValue placeholder="Cliente" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os clientes</SelectItem>
+              <SelectItem value={ALL_DOMAIN_CLIENT_VALUE}>Todos os clientes</SelectItem>
               {clientOptions.map((client) => (
                 <SelectItem key={client.value} value={client.value}>
                   {client.label}

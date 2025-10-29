@@ -71,6 +71,8 @@ const recurringDueFilterOptions = [
   { label: 'Atrasadas', value: 'overdue' },
 ]
 
+const ALL_FILTER_OPTION_VALUE = '__ALL_EXPENSE_FILTER__'
+
 const formatCurrency = (value: number, currency: string = 'BRL') => {
   try {
     return new Intl.NumberFormat('pt-BR', {
@@ -305,54 +307,81 @@ export default function ExpensesPage() {
               <div className="space-y-2">
                 <Label className="text-xs uppercase text-muted-foreground">Tipo</Label>
                 <Select
-                  value={expenseFilters.type}
-                  onValueChange={(value) => setExpenseFilters((previous) => ({ ...previous, type: value }))}
+                  value={expenseFilters.type ? expenseFilters.type : ALL_FILTER_OPTION_VALUE}
+                  onValueChange={(value) =>
+                    setExpenseFilters((previous) => ({
+                      ...previous,
+                      type: value === ALL_FILTER_OPTION_VALUE ? '' : value,
+                    }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    {expenseTypeFilterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {expenseTypeFilterOptions.map((option) => {
+                      const optionValue = option.value === '' ? ALL_FILTER_OPTION_VALUE : option.value
+                      const key = option.value === '' ? 'all-expense-type' : option.value
+                      return (
+                        <SelectItem key={key} value={optionValue}>
+                          {option.label}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs uppercase text-muted-foreground">Status</Label>
                 <Select
-                  value={expenseFilters.status}
-                  onValueChange={(value) => setExpenseFilters((previous) => ({ ...previous, status: value }))}
+                  value={expenseFilters.status ? expenseFilters.status : ALL_FILTER_OPTION_VALUE}
+                  onValueChange={(value) =>
+                    setExpenseFilters((previous) => ({
+                      ...previous,
+                      status: value === ALL_FILTER_OPTION_VALUE ? '' : value,
+                    }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    {expenseStatusFilterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {expenseStatusFilterOptions.map((option) => {
+                      const optionValue = option.value === '' ? ALL_FILTER_OPTION_VALUE : option.value
+                      const key = option.value === '' ? 'all-expense-status' : option.value
+                      return (
+                        <SelectItem key={key} value={optionValue}>
+                          {option.label}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs uppercase text-muted-foreground">Vencimento</Label>
                 <Select
-                  value={expenseFilters.dueIn}
-                  onValueChange={(value) => setExpenseFilters((previous) => ({ ...previous, dueIn: value }))}
+                  value={expenseFilters.dueIn ? expenseFilters.dueIn : ALL_FILTER_OPTION_VALUE}
+                  onValueChange={(value) =>
+                    setExpenseFilters((previous) => ({
+                      ...previous,
+                      dueIn: value === ALL_FILTER_OPTION_VALUE ? '' : value,
+                    }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    {expenseDueFilterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {expenseDueFilterOptions.map((option) => {
+                      const optionValue = option.value === '' ? ALL_FILTER_OPTION_VALUE : option.value
+                      const key = option.value === '' ? 'all-expense-due' : option.value
+                      return (
+                        <SelectItem key={key} value={optionValue}>
+                          {option.label}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -424,54 +453,81 @@ export default function ExpensesPage() {
               <div className="space-y-2">
                 <Label className="text-xs uppercase text-muted-foreground">Tipo</Label>
                 <Select
-                  value={recurringFilters.type}
-                  onValueChange={(value) => setRecurringFilters((previous) => ({ ...previous, type: value }))}
+                  value={recurringFilters.type ? recurringFilters.type : ALL_FILTER_OPTION_VALUE}
+                  onValueChange={(value) =>
+                    setRecurringFilters((previous) => ({
+                      ...previous,
+                      type: value === ALL_FILTER_OPTION_VALUE ? '' : value,
+                    }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    {expenseTypeFilterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {expenseTypeFilterOptions.map((option) => {
+                      const optionValue = option.value === '' ? ALL_FILTER_OPTION_VALUE : option.value
+                      const key = option.value === '' ? 'all-recurring-type' : option.value
+                      return (
+                        <SelectItem key={key} value={optionValue}>
+                          {option.label}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs uppercase text-muted-foreground">Status</Label>
                 <Select
-                  value={recurringFilters.status}
-                  onValueChange={(value) => setRecurringFilters((previous) => ({ ...previous, status: value }))}
+                  value={recurringFilters.status ? recurringFilters.status : ALL_FILTER_OPTION_VALUE}
+                  onValueChange={(value) =>
+                    setRecurringFilters((previous) => ({
+                      ...previous,
+                      status: value === ALL_FILTER_OPTION_VALUE ? '' : value,
+                    }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    {recurringStatusFilterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {recurringStatusFilterOptions.map((option) => {
+                      const optionValue = option.value === '' ? ALL_FILTER_OPTION_VALUE : option.value
+                      const key = option.value === '' ? 'all-recurring-status' : option.value
+                      return (
+                        <SelectItem key={key} value={optionValue}>
+                          {option.label}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs uppercase text-muted-foreground">Próximo vencimento</Label>
                 <Select
-                  value={recurringFilters.dueIn}
-                  onValueChange={(value) => setRecurringFilters((previous) => ({ ...previous, dueIn: value }))}
+                  value={recurringFilters.dueIn ? recurringFilters.dueIn : ALL_FILTER_OPTION_VALUE}
+                  onValueChange={(value) =>
+                    setRecurringFilters((previous) => ({
+                      ...previous,
+                      dueIn: value === ALL_FILTER_OPTION_VALUE ? '' : value,
+                    }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    {recurringDueFilterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {recurringDueFilterOptions.map((option) => {
+                      const optionValue = option.value === '' ? ALL_FILTER_OPTION_VALUE : option.value
+                      const key = option.value === '' ? 'all-recurring-due' : option.value
+                      return (
+                        <SelectItem key={key} value={optionValue}>
+                          {option.label}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>

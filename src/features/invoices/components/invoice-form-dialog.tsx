@@ -86,6 +86,9 @@ const defaultValues: InvoiceFormValues = {
   status: INVOICE_STATUS_OPTIONS[0]?.value ?? 'pending',
 }
 
+const NO_CLIENTS_AVAILABLE_VALUE = '__INVOICE_NO_CLIENTS__'
+const NO_CONTRACT_OPTION_VALUE = '__INVOICE_NO_CONTRACT__'
+
 const normalizeInvoiceToForm = (invoice?: Invoice | null): InvoiceFormValues => {
   if (!invoice) return defaultValues
 
@@ -176,7 +179,7 @@ export function InvoiceFormDialog({
                     </FormControl>
                     <SelectContent className="rounded-2xl border-white/20 bg-background/95 backdrop-blur">
                       {clientOptions.length === 0 ? (
-                        <SelectItem value="" disabled>
+                        <SelectItem value={NO_CLIENTS_AVAILABLE_VALUE} disabled>
                           Nenhum cliente disponível
                         </SelectItem>
                       ) : (
@@ -200,8 +203,16 @@ export function InvoiceFormDialog({
                 <FormItem>
                   <FormLabel>Contrato (opcional)</FormLabel>
                   <Select
-                    onValueChange={(value) => field.onChange(value || undefined)}
-                    value={field.value ?? ''}
+                    onValueChange={(value) =>
+                      field.onChange(
+                        value === NO_CONTRACT_OPTION_VALUE || value === '' ? undefined : value,
+                      )
+                    }
+                    value={
+                      field.value && field.value !== ''
+                        ? field.value
+                        : NO_CONTRACT_OPTION_VALUE
+                    }
                     disabled={isSubmitting}
                   >
                     <FormControl>
@@ -210,7 +221,7 @@ export function InvoiceFormDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="rounded-2xl border-white/20 bg-background/95 backdrop-blur">
-                      <SelectItem value="">Sem contrato vinculado</SelectItem>
+                      <SelectItem value={NO_CONTRACT_OPTION_VALUE}>Sem contrato vinculado</SelectItem>
                       {filteredContracts.map((contract) => (
                         <SelectItem key={contract.id} value={contract.id}>
                           {contract.title}

@@ -82,6 +82,8 @@ const defaultValues: DomainFormValues = {
   notes: undefined,
 }
 
+const OTHER_PROVIDER_OPTION_VALUE = '__DOMAIN_OTHER_PROVIDER__'
+
 const normalizeDomainToForm = (domain?: Domain | null): DomainFormValues => {
   if (!domain) {
     return defaultValues
@@ -184,12 +186,25 @@ export function DomainFormDialog({
                   <FormItem>
                     <FormLabel>Provedor</FormLabel>
                     <FormControl>
-                      <Select value={field.value ?? ''} onValueChange={(value) => field.onChange(value || undefined)}>
+                      <Select
+                        value={
+                          field.value && field.value !== ''
+                            ? field.value
+                            : OTHER_PROVIDER_OPTION_VALUE
+                        }
+                        onValueChange={(value) =>
+                          field.onChange(
+                            value === OTHER_PROVIDER_OPTION_VALUE || value === ''
+                              ? undefined
+                              : value,
+                          )
+                        }
+                      >
                         <SelectTrigger className="bg-background/60">
                           <SelectValue placeholder="Selecione o provedor" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Outro</SelectItem>
+                          <SelectItem value={OTHER_PROVIDER_OPTION_VALUE}>Outro</SelectItem>
                           {providers.map((provider) => (
                             <SelectItem key={provider.value} value={provider.value}>
                               {provider.label}

@@ -133,6 +133,8 @@ const subscriptionSchema = z.object({
   contractId: z.string().optional().or(z.literal('')),
 })
 
+const NO_CONTRACT_OPTION_VALUE = '__CLIENT_DETAIL_NO_CONTRACT__'
+
 const domainSchema = z.object({
   host: z.string().min(1, 'Informe o domínio'),
   provider: z.string().optional(),
@@ -1316,12 +1318,17 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Contrato vinculado</FormLabel>
-                    <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value && field.value !== '' ? field.value : NO_CONTRACT_OPTION_VALUE}
+                      onValueChange={(value) =>
+                        field.onChange(value === NO_CONTRACT_OPTION_VALUE ? '' : value)
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecionar contrato" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Sem vínculo</SelectItem>
+                        <SelectItem value={NO_CONTRACT_OPTION_VALUE}>Sem vínculo</SelectItem>
                         {(contractsQuery.data?.data ?? []).map((contract) => (
                           <SelectItem key={contract.id} value={contract.id}>
                             {contract.title}
