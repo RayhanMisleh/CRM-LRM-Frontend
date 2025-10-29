@@ -205,6 +205,7 @@ export type CreateClientInput = {
 }
 
 export type UpdateClientInput = CreateClientInput & { id: string }
+export type UpdateClientTagsInput = { id: string; tags: string[] }
 
 const buildSearchParams = (filters: Record<string, unknown>) => {
   const params = new URLSearchParams()
@@ -259,6 +260,11 @@ const createClient = async (input: CreateClientInput) => {
 
 const updateClient = async ({ id, ...input }: UpdateClientInput) => {
   const response = await clientsApi.put(`clients/${id}`, { json: input })
+  return (await response.json()) as Client
+}
+
+const updateClientTags = async ({ id, tags }: UpdateClientTagsInput) => {
+  const response = await clientsApi.patch(`clients/${id}`, { json: { tags } })
   return (await response.json()) as Client
 }
 
@@ -426,6 +432,24 @@ export const useUpdateClient = <TContext = unknown>(
 
   return useMutation({
     mutationFn: updateClient,
+    ...options,
+    onSuccess: (client, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] })
+      if (client?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.detail(client.id) })
+      }
+      options?.onSuccess?.(client, variables, context)
+    },
+  })
+}
+
+export const useUpdateClientTags = <TContext = unknown>(
+  options?: UseMutationOptions<Client, unknown, UpdateClientTagsInput, TContext>,
+): UseMutationResult<Client, unknown, UpdateClientTagsInput, TContext> => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateClientTags,
     ...options,
     onSuccess: (client, variables, context) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] })
