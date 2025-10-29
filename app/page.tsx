@@ -1,5 +1,5 @@
-import { CRMDashboard } from "@/components/crm-dashboard"
+import { redirect } from 'next/navigation'
 
-export default function Home() {
-  return <CRMDashboard />
+export default function IndexPage() {
+  redirect('/dashboard')
 }
