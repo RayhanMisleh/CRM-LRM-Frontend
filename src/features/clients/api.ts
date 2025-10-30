@@ -90,21 +90,7 @@ export interface ClientContract {
   validUntil?: string | null
   totalValue?: number | null
   billingCycle?: 'monthly' | 'quarterly' | 'yearly' | string | null
-  subscriptionId?: string | null
-  createdAt: string
-  updatedAt?: string | null
-}
-
-export interface ClientSubscription {
-  id: string
-  clientId: string
-  contractId?: string | null
-  planName: string
-  status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'paused' | string
-  amount?: number | null
-  billingCycle?: 'monthly' | 'quarterly' | 'yearly' | string | null
-  startedAt?: string | null
-  renewsAt?: string | null
+  clientServiceId?: string | null
   createdAt: string
   updatedAt?: string | null
 }
@@ -180,19 +166,6 @@ export type CreateClientContractInput = {
 }
 
 export type UpdateClientContractInput = Partial<CreateClientContractInput> & { id: string; clientId: string }
-
-export type CreateClientSubscriptionInput = {
-  clientId: string
-  contractId?: string | null
-  planName: string
-  status?: ClientSubscription['status']
-  amount?: number | null
-  billingCycle?: ClientSubscription['billingCycle']
-  startedAt?: string | null
-  renewsAt?: string | null
-}
-
-export type UpdateClientSubscriptionInput = Partial<CreateClientSubscriptionInput> & { id: string; clientId: string }
 
 export type CreateClientDomainInput = {
   clientId: string
@@ -360,7 +333,7 @@ const queryKeys = {
   detail: (id: string): QueryKey => ['clients', 'detail', id],
   contacts: (id: string): QueryKey => ['clients', 'detail', id, 'contacts'],
   contracts: (id: string): QueryKey => ['clients', 'detail', id, 'contracts'],
-  subscriptions: (id: string): QueryKey => ['clients', 'detail', id, 'subscriptions'],
+  services: (id: string): QueryKey => ['clients', 'detail', id, 'services'],
   domains: (id: string): QueryKey => ['clients', 'detail', id, 'domains'],
   meetings: (id: string): QueryKey => ['clients', 'detail', id, 'meetings'],
 } as const
@@ -460,26 +433,6 @@ const updateClientContract = async ({ id, clientId, ...input }: UpdateClientCont
 
 const deleteClientContract = async ({ clientId, id }: { clientId: string; id: string }) => {
   await clientsApi.delete(`clients/${clientId}/contracts/${id}`)
-  return id
-}
-
-const fetchClientSubscriptions = async (clientId: string) => {
-  const response = await clientsApi.get(`clients/${clientId}/subscriptions`)
-  return (await response.json()) as PaginatedClientResource<ClientSubscription>
-}
-
-const createClientSubscription = async (input: CreateClientSubscriptionInput) => {
-  const response = await clientsApi.post(`clients/${input.clientId}/subscriptions`, { json: input })
-  return (await response.json()) as ClientSubscription
-}
-
-const updateClientSubscription = async ({ id, clientId, ...input }: UpdateClientSubscriptionInput) => {
-  const response = await clientsApi.put(`clients/${clientId}/subscriptions/${id}`, { json: input })
-  return (await response.json()) as ClientSubscription
-}
-
-const deleteClientSubscription = async ({ clientId, id }: { clientId: string; id: string }) => {
-  await clientsApi.delete(`clients/${clientId}/subscriptions/${id}`)
   return id
 }
 
@@ -706,46 +659,6 @@ export const useDeleteClientContract = () => {
     mutationFn: deleteClientContract,
     onSuccess: (_, variables) => {
       buildInvalidateDetail(queryClient, variables.clientId, queryKeys.contracts(variables.clientId))
-    },
-  })
-}
-
-export const useClientSubscriptions = (clientId: string) => {
-  return useQuery({
-    queryKey: queryKeys.subscriptions(clientId),
-    queryFn: () => fetchClientSubscriptions(clientId),
-  })
-}
-
-export const useCreateClientSubscription = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: createClientSubscription,
-    onSuccess: (subscription) => {
-      buildInvalidateDetail(queryClient, subscription.clientId, queryKeys.subscriptions(subscription.clientId))
-    },
-  })
-}
-
-export const useUpdateClientSubscription = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: updateClientSubscription,
-    onSuccess: (subscription) => {
-      buildInvalidateDetail(queryClient, subscription.clientId, queryKeys.subscriptions(subscription.clientId))
-    },
-  })
-}
-
-export const useDeleteClientSubscription = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: deleteClientSubscription,
-    onSuccess: (_, variables) => {
-      buildInvalidateDetail(queryClient, variables.clientId, queryKeys.subscriptions(variables.clientId))
     },
   })
 }

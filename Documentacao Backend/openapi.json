@@ -1,0 +1,1 @@
+{"openapi":"3.0.3","info":{"title":"crm-lrm-backend","version":"1.0.0","description":"CRM LRM Backend with Node.js and Prisma"},"servers":[{"url":"/","description":"Servidor atual"},{"url":"/api","description":"Base relativa da API"}],"paths":{},"components":{},"tags":[]}

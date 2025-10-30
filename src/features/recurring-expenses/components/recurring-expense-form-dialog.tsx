@@ -153,7 +153,7 @@ export function RecurringExpenseFormDialog({
                   <FormItem className="sm:col-span-2">
                     <FormLabel>Título</FormLabel>
                     <FormControl>
-                      <Input placeholder="Assinatura de software" {...field} />
+                      <Input placeholder="Serviço de software" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

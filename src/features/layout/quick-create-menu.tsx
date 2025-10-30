@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react'
 import Link from 'next/link'
-import { Plus, UserPlus, FileSignature, CalendarPlus, FileText, MessageSquare } from 'lucide-react'
+import { Plus, UserPlus, FileSignature, CalendarPlus, FileText, MessageSquare, Workflow } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -17,6 +17,7 @@ import {
 const quickLinks = [
   { href: '/clients/new', label: 'Novo cliente', icon: UserPlus },
   { href: '/contracts/new', label: 'Novo contrato', icon: FileSignature },
+  { href: '/client-services?create=wizard', label: 'Novo serviço contratado', icon: Workflow },
   { href: '/meetings/new', label: 'Agendar reunião', icon: CalendarPlus },
   { href: '/invoices?create=manual', label: 'Emitir fatura', icon: FileText },
 ] as const

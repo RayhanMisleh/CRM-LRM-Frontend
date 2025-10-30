@@ -18,6 +18,19 @@ export interface InvoiceContractSummary {
   title: string
 }
 
+export interface InvoiceServiceSummary {
+  id: string
+  name: string
+  status?: string | null
+  clientName?: string | null
+}
+
+export interface InvoiceBillingSummary {
+  id: string
+  cycle: string
+  status?: string | null
+}
+
 export interface Invoice {
   id: string
   number?: string | null
@@ -26,6 +39,10 @@ export interface Invoice {
   client?: InvoiceClientSummary | null
   contractId?: string | null
   contract?: InvoiceContractSummary | null
+  clientServiceId?: string | null
+  clientService?: InvoiceServiceSummary | null
+  serviceBillingId?: string | null
+  serviceBilling?: InvoiceBillingSummary | null
   amount?: number | null
   currency?: string | null
   issueDate?: string | null
@@ -53,6 +70,8 @@ export interface InvoiceListFilters {
   pageSize?: number
   status?: string
   clientId?: string
+  clientServiceId?: string
+  serviceBillingId?: string
   dueIn?: string | number
   period?: string | number
   search?: string
@@ -61,6 +80,8 @@ export interface InvoiceListFilters {
 export type CreateInvoiceInput = {
   clientId: string
   contractId?: string | null
+  clientServiceId?: string | null
+  serviceBillingId?: string | null
   number?: string | null
   description?: string | null
   amount: number
@@ -87,6 +108,8 @@ const queryKeys = {
       filters.pageSize ?? null,
       filters.status ?? null,
       filters.clientId ?? null,
+      filters.clientServiceId ?? null,
+      filters.serviceBillingId ?? null,
       filters.dueIn ?? null,
       filters.period ?? null,
       filters.search ?? null,
@@ -111,6 +134,14 @@ const buildSearchParams = (filters: InvoiceListFilters = {}) => {
 
   if (filters.clientId) {
     params.set('clientId', filters.clientId)
+  }
+
+  if (filters.clientServiceId) {
+    params.set('clientServiceId', filters.clientServiceId)
+  }
+
+  if (filters.serviceBillingId) {
+    params.set('serviceBillingId', filters.serviceBillingId)
   }
 
   if (filters.dueIn !== undefined && filters.dueIn !== null && `${filters.dueIn}` !== '') {
@@ -162,11 +193,23 @@ export const useInvoices = (filters: InvoiceListFilters = {}) => {
       pageSize: filters.pageSize,
       status: filters.status,
       clientId: filters.clientId,
+      clientServiceId: filters.clientServiceId,
+      serviceBillingId: filters.serviceBillingId,
       dueIn: filters.dueIn,
       period: filters.period,
       search: filters.search,
     }),
-    [filters.clientId, filters.dueIn, filters.page, filters.pageSize, filters.period, filters.search, filters.status],
+    [
+      filters.clientId,
+      filters.clientServiceId,
+      filters.serviceBillingId,
+      filters.dueIn,
+      filters.page,
+      filters.pageSize,
+      filters.period,
+      filters.search,
+      filters.status,
+    ],
   )
 
   return useQuery({

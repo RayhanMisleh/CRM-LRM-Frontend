@@ -38,6 +38,16 @@ const invoiceSchema = z.object({
     .optional()
     .or(z.literal(''))
     .transform((value) => (value ? value : undefined)),
+  clientServiceId: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .transform((value) => (value ? value : undefined)),
+  serviceBillingId: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .transform((value) => (value ? value : undefined)),
   number: z
     .string()
     .optional()
@@ -70,6 +80,8 @@ interface InvoiceFormDialogProps {
   invoice?: Invoice | null
   clients: Array<{ id: string; name: string }>
   contracts: Array<{ id: string; title: string; clientId?: string | null }>
+  services: Array<{ id: string; name: string; clientId?: string | null }>
+  billings: Array<{ id: string; label: string; clientServiceId?: string | null }>
   isSubmitting?: boolean
   onSubmit: (values: InvoiceFormValues) => Promise<void> | void
 }
@@ -77,6 +89,8 @@ interface InvoiceFormDialogProps {
 const defaultValues: InvoiceFormValues = {
   clientId: '',
   contractId: undefined,
+  clientServiceId: undefined,
+  serviceBillingId: undefined,
   number: undefined,
   description: undefined,
   amount: 0,
@@ -88,6 +102,8 @@ const defaultValues: InvoiceFormValues = {
 
 const NO_CLIENTS_AVAILABLE_VALUE = '__INVOICE_NO_CLIENTS__'
 const NO_CONTRACT_OPTION_VALUE = '__INVOICE_NO_CONTRACT__'
+const NO_SERVICE_OPTION_VALUE = '__INVOICE_NO_SERVICE__'
+const NO_BILLING_OPTION_VALUE = '__INVOICE_NO_BILLING__'
 
 const normalizeInvoiceToForm = (invoice?: Invoice | null): InvoiceFormValues => {
   if (!invoice) return defaultValues
@@ -95,6 +111,8 @@ const normalizeInvoiceToForm = (invoice?: Invoice | null): InvoiceFormValues => 
   return {
     clientId: invoice.clientId,
     contractId: invoice.contractId ?? undefined,
+    clientServiceId: invoice.clientServiceId ?? undefined,
+    serviceBillingId: invoice.serviceBillingId ?? undefined,
     number: invoice.number ?? undefined,
     description: invoice.description ?? undefined,
     amount: invoice.amount ?? 0,
@@ -123,6 +141,8 @@ export function InvoiceFormDialog({
   invoice,
   clients,
   contracts,
+  services,
+  billings,
   isSubmitting = false,
   onSubmit,
 }: InvoiceFormDialogProps) {
@@ -139,15 +159,28 @@ export function InvoiceFormDialog({
 
   const clientOptions = useMemo(() => clients, [clients])
   const contractsOptions = useMemo(() => contracts, [contracts])
+  const servicesOptions = useMemo(() => services, [services])
+  const billingsOptions = useMemo(() => billings, [billings])
 
   const watchedValues = useWatch({ control: form.control })
   const selectedClientId = watchedValues?.clientId
+  const selectedServiceId = watchedValues?.clientServiceId
   const currency = watchedValues?.currency ?? 'BRL'
 
   const filteredContracts = useMemo(() => {
     if (!selectedClientId) return contractsOptions
     return contractsOptions.filter((contract) => !contract.clientId || contract.clientId === selectedClientId)
   }, [contractsOptions, selectedClientId])
+
+  const filteredServices = useMemo(() => {
+    if (!selectedClientId) return servicesOptions
+    return servicesOptions.filter((service) => !service.clientId || service.clientId === selectedClientId)
+  }, [selectedClientId, servicesOptions])
+
+  const filteredBillings = useMemo(() => {
+    if (!selectedServiceId) return billingsOptions
+    return billingsOptions.filter((billing) => !billing.clientServiceId || billing.clientServiceId === selectedServiceId)
+  }, [billingsOptions, selectedServiceId])
 
   const handleSubmit = form.handleSubmit(async (values) => {
     await onSubmit(values)
@@ -230,6 +263,76 @@ export function InvoiceFormDialog({
                     </SelectContent>
                   </Select>
                   <FormDescription>Opcional: vincule a fatura a um contrato existente.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="clientServiceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Serviço do cliente</FormLabel>
+                  <Select
+                    onValueChange={(value) =>
+                      field.onChange(value === NO_SERVICE_OPTION_VALUE || value === '' ? undefined : value)
+                    }
+                    value={
+                      field.value && field.value !== '' ? field.value : NO_SERVICE_OPTION_VALUE
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="rounded-2xl border-white/20 bg-white/10 text-white">
+                        <SelectValue placeholder="Vincular a um serviço" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="rounded-2xl border-white/20 bg-background/95 backdrop-blur">
+                      <SelectItem value={NO_SERVICE_OPTION_VALUE}>Sem serviço vinculado</SelectItem>
+                      {filteredServices.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Opcional: vincule a fatura a um serviço contratado.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="serviceBillingId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cobrança recorrente</FormLabel>
+                  <Select
+                    onValueChange={(value) =>
+                      field.onChange(value === NO_BILLING_OPTION_VALUE || value === '' ? undefined : value)
+                    }
+                    value={
+                      field.value && field.value !== '' ? field.value : NO_BILLING_OPTION_VALUE
+                    }
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="rounded-2xl border-white/20 bg-white/10 text-white">
+                        <SelectValue placeholder="Vincular a uma cobrança" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="rounded-2xl border-white/20 bg-background/95 backdrop-blur">
+                      <SelectItem value={NO_BILLING_OPTION_VALUE}>Sem cobrança vinculada</SelectItem>
+                      {filteredBillings.map((billing) => (
+                        <SelectItem key={billing.id} value={billing.id}>
+                          {billing.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Opcional: associe a uma cobrança recorrente existente.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

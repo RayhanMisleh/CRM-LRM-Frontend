@@ -75,7 +75,7 @@ import {
   type ApiHttpError,
 } from '../api'
 import { ContractFormDialog, type ContractFormValues } from './contract-form-dialog'
-import { useCreateSubscription } from '@/features/subscriptions/api'
+import { useCreateClientService } from '@/features/client-services/api'
 
 const filtersSchema = z.object({
   clientId: z.string().optional().or(z.literal('')).catch(''),
@@ -219,7 +219,7 @@ export function ContractsPage() {
   const contractsQuery = useContracts(apiFilters)
   const createContract = useCreateContract()
   const updateContract = useUpdateContract()
-  const createSubscription = useCreateSubscription()
+  const createClientService = useCreateClientService()
 
   const clientsQuery = useClients({ pageSize: 100 })
 
@@ -308,31 +308,33 @@ export function ContractsPage() {
     [createContract, dialogState.contract, updateContract],
   )
 
-  const handleGenerateSubscription = useCallback(
+  const handleGenerateService = useCallback(
     async (contract: Contract) => {
       try {
         setGeneratingId(contract.id)
-        await createSubscription.mutateAsync({
+        await createClientService.mutateAsync({
           clientId: contract.clientId,
           contractId: contract.id,
-          planName: contract.title,
+          templateId: undefined,
           status: 'active',
-          amount: contract.totalValue ?? 0,
-          billingCycle: (contract.billingCycle as string | undefined) ?? 'monthly',
-          startedAt: new Date().toISOString(),
-          renewsAt: contract.validUntil ?? undefined,
+          billingCycle: (contract.billingCycle as string | undefined) ?? undefined,
+          defaultMonthlyFee: contract.totalValue ?? undefined,
+          startDate: contract.signedAt ?? undefined,
+          endDate: contract.validUntil ?? undefined,
+          supportLevel: 'standard',
+          tags: [],
         })
         toast({
-          title: 'Assinatura gerada',
-          description: 'Criamos uma assinatura recorrente vinculada a este contrato.',
+          title: 'Serviço criado',
+          description: 'Registramos um serviço vinculado a este contrato.',
         })
       } catch (error) {
         const message =
           (error as ApiHttpError)?.friendlyMessage ??
           (error as Error)?.message ??
-          'Não foi possível gerar a assinatura.'
+          'Não foi possível criar o serviço.'
         toast({
-          title: 'Erro ao gerar assinatura',
+          title: 'Erro ao criar serviço',
           description: message,
           variant: 'destructive',
         })
@@ -340,7 +342,7 @@ export function ContractsPage() {
         setGeneratingId(null)
       }
     },
-    [createSubscription],
+    [createClientService],
   )
 
   const dataRows = contractsQuery.data?.data ?? []
@@ -401,11 +403,11 @@ export function ContractsPage() {
                 <Edit3Icon className="mr-2 size-4" /> Editar contrato
               </DropdownMenuItem>
               <DropdownMenuItem
-                disabled={generatingId === row.original.id || createSubscription.isPending}
-                onClick={() => handleGenerateSubscription(row.original)}
+                disabled={generatingId === row.original.id || createClientService.isPending}
+                onClick={() => handleGenerateService(row.original)}
               >
                 <FileSignatureIcon className="mr-2 size-4" />
-                {generatingId === row.original.id ? 'Gerando...' : 'Gerar assinatura'}
+                {generatingId === row.original.id ? 'Gerando...' : 'Gerar serviço'}
               </DropdownMenuItem>
               {row.original.arquivoPdfUrl ? (
                 <DropdownMenuItem asChild>
@@ -424,7 +426,7 @@ export function ContractsPage() {
         ),
       },
     ],
-    [createSubscription.isPending, generatingId, handleGenerateSubscription, handleOpenEdit],
+    [createClientService.isPending, generatingId, handleGenerateService, handleOpenEdit],
   )
 
   const table = useReactTable({
@@ -465,7 +467,7 @@ export function ContractsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Contratos"
-        description="Centralize contratos ativos, renovações pendentes e status de assinatura dos clientes."
+          description="Centralize contratos ativos, renovações pendentes e vincule serviços contratados pelos clientes."
         breadcrumbs={[{ href: '/dashboard', label: 'Dashboard' }, { label: 'Contratos' }]}
         actions={
           <Button onClick={handleOpenCreate} className="rounded-2xl">

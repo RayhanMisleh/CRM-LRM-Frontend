@@ -148,6 +148,20 @@ export function InvoicesTable({
         cell: ({ row }) => row.original.contract?.title ?? '—',
       },
       {
+        accessorKey: 'clientService',
+        header: 'Serviço',
+        cell: ({ row }) => row.original.clientService?.name ?? '—',
+      },
+      {
+        accessorKey: 'serviceBilling',
+        header: 'Cobrança',
+        cell: ({ row }) => {
+          const billing = row.original.serviceBilling
+          if (!billing) return '—'
+          return `${billing.cycle ?? ''}${billing.status ? ` · ${billing.status}` : ''}`.trim()
+        },
+      },
+      {
         accessorKey: 'amount',
         header: 'Valor',
         cell: ({ row }) => formatCurrency(row.original.amount, row.original.currency ?? currency),

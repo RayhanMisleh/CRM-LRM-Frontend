@@ -11,11 +11,14 @@ import {
 import { format } from 'date-fns'
 import {
   CalendarIcon,
+  DollarSign,
   FileTextIcon,
   GlobeIcon,
   LayersIcon,
   PenSquareIcon,
   PlusIcon,
+  RefreshCw,
+  Server,
   TagIcon,
   Trash2Icon,
   UsersIcon,
@@ -30,14 +33,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useRouter } from 'next/navigation'
 
 import { toast } from '@/hooks/use-toast'
+import { useConfirm } from '@/hooks/use-confirm'
 
 import { PageHeader } from '@/features/layout/header/page-header'
+import { EmptyPlaceholder } from '@/features/layout/empty-placeholder'
 
 import {
   CLIENT_STATUS_OPTIONS,
@@ -46,51 +52,55 @@ import {
   type ClientContract,
   type ClientDomain,
   type ClientMeeting,
-  type ClientSubscription,
   type CreateClientContactInput,
   type CreateClientContractInput,
   type CreateClientDomainInput,
   type CreateClientMeetingInput,
-  type CreateClientSubscriptionInput,
   type UpdateClientContactInput,
   type UpdateClientContractInput,
   type UpdateClientDomainInput,
   type UpdateClientMeetingInput,
-  type UpdateClientSubscriptionInput,
   useClient,
   useClientContacts,
   useClientContracts,
   useClientDomains,
   useClientMeetings,
-  useClientSubscriptions,
   useCreateClientContact,
   useCreateClientContract,
   useCreateClientDomain,
   useCreateClientMeeting,
-  useCreateClientSubscription,
   useDeleteClientContact,
   useDeleteClientContract,
   useDeleteClientDomain,
   useDeleteClientMeeting,
-  useDeleteClientSubscription,
   useUpdateClient,
   useUpdateClientContact,
   useUpdateClientContract,
   useUpdateClientDomain,
   useUpdateClientMeeting,
-  useUpdateClientSubscription,
 } from '../api'
 import { useQueryClient } from '@tanstack/react-query'
+import {
+  useClientServices as useClientServicesList,
+  useCreateClientService as useCreateClientServiceMutation,
+  useUpdateClientService as useUpdateClientServiceMutation,
+  useDeleteClientService as useDeleteClientServiceMutation,
+  type ClientService,
+  type CreateClientServiceInput,
+  type UpdateClientServiceInput,
+} from '@/features/client-services/api'
+import { useCreateServiceBilling } from '@/features/service-billings/api'
+import { ClientServiceDialog, type ClientServiceFormValues } from '@/features/client-services/components/client-service-dialog'
 
 interface ClientDetailViewProps {
   clientId: string
   initialData: Client
 }
 
-const summaryCardIcons: Record<'contacts' | 'contracts' | 'subscriptions' | 'domains' | 'meetings', ReactNode> = {
+const summaryCardIcons: Record<'contacts' | 'contracts' | 'services' | 'domains' | 'meetings', ReactNode> = {
   contacts: <UsersIcon className="size-5" />,
   contracts: <FileTextIcon className="size-5" />,
-  subscriptions: <LayersIcon className="size-5" />,
+  services: <LayersIcon className="size-5" />,
   domains: <GlobeIcon className="size-5" />,
   meetings: <CalendarIcon className="size-5" />,
 }
@@ -98,9 +108,41 @@ const summaryCardIcons: Record<'contacts' | 'contracts' | 'subscriptions' | 'dom
 const summaryLabels: Record<keyof typeof summaryCardIcons, string> = {
   contacts: 'Contatos',
   contracts: 'Contratos',
-  subscriptions: 'Assinaturas',
+  services: 'Serviços',
   domains: 'Domínios',
   meetings: 'Reuniões',
+}
+
+const serviceStatusStyles: Record<string, string> = {
+  draft: 'bg-slate-500/20 text-slate-200',
+  active: 'bg-emerald-500/20 text-emerald-200',
+  paused: 'bg-amber-500/20 text-amber-200',
+  suspended: 'bg-amber-500/20 text-amber-200',
+  terminated: 'bg-rose-500/20 text-rose-200',
+}
+
+const serviceSupportLabels: Record<string, string> = {
+  basic: 'Basic',
+  standard: 'Standard',
+  premium: 'Premium',
+  enterprise: 'Enterprise',
+}
+
+const serviceCycleLabels: Record<string, string> = {
+  monthly: 'Mensal',
+  bimonthly: 'Bimestral',
+  quarterly: 'Trimestral',
+  semester: 'Semestral',
+  yearly: 'Anual',
+}
+
+const formatCurrencyBRL = (value?: number | null) => {
+  if (value === null || value === undefined) return null
+  try {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+  } catch {
+    return `R$ ${value.toFixed(2)}`
+  }
 }
 
 const contactSchema = z.object({
@@ -123,18 +165,6 @@ const contractSchema = z.object({
   validUntil: z.string().optional(),
 })
 
-const subscriptionSchema = z.object({
-  planName: z.string().min(1, 'Informe o plano'),
-  status: z.string().min(1, 'Informe o status'),
-  amount: z.coerce.number().optional().or(z.nan()).transform((value) => (Number.isFinite(value) ? value : undefined)),
-  billingCycle: z.string().optional(),
-  startedAt: z.string().optional(),
-  renewsAt: z.string().optional(),
-  contractId: z.string().optional().or(z.literal('')),
-})
-
-const NO_CONTRACT_OPTION_VALUE = '__CLIENT_DETAIL_NO_CONTRACT__'
-
 const domainSchema = z.object({
   host: z.string().min(1, 'Informe o domínio'),
   provider: z.string().optional(),
@@ -153,7 +183,6 @@ const meetingSchema = z.object({
 
 export type ContactFormValues = z.infer<typeof contactSchema>
 export type ContractFormValues = z.infer<typeof contractSchema>
-export type SubscriptionFormValues = z.infer<typeof subscriptionSchema>
 export type DomainFormValues = z.infer<typeof domainSchema>
 export type MeetingFormValues = z.infer<typeof meetingSchema>
 
@@ -172,20 +201,18 @@ const sanitizeEmpty = (value?: string | null) => (value ? value : undefined)
 export function ClientDetailView({ clientId, initialData }: ClientDetailViewProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const [activeTab, setActiveTab] = useState('overview')
   const [contactModal, setContactModal] = useState<{ open: boolean; editing?: ClientContact }>({ open: false })
   const [contractModal, setContractModal] = useState<{ open: boolean; editing?: ClientContract }>({ open: false })
-  const [subscriptionModal, setSubscriptionModal] = useState<{ open: boolean; editing?: ClientSubscription }>({
-    open: false,
-  })
+  const [serviceModal, setServiceModal] = useState<{ open: boolean; editing?: ClientService | null }>({ open: false })
   const [domainModal, setDomainModal] = useState<{ open: boolean; editing?: ClientDomain }>({ open: false })
   const [meetingModal, setMeetingModal] = useState<{ open: boolean; editing?: ClientMeeting }>({ open: false })
-  const [pendingContract, setPendingContract] = useState<ClientContract | null>(null)
 
   const { data: client } = useClient(clientId, initialData)
   const contactsQuery = useClientContacts(clientId)
   const contractsQuery = useClientContracts(clientId)
-  const subscriptionsQuery = useClientSubscriptions(clientId)
+  const servicesQuery = useClientServicesList({ clientId })
   const domainsQuery = useClientDomains(clientId)
   const meetingsQuery = useClientMeetings(clientId)
 
@@ -197,9 +224,10 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
   const updateContract = useUpdateClientContract()
   const deleteContract = useDeleteClientContract()
 
-  const createSubscription = useCreateClientSubscription()
-  const updateSubscription = useUpdateClientSubscription()
-  const deleteSubscription = useDeleteClientSubscription()
+  const createService = useCreateClientServiceMutation()
+  const updateService = useUpdateClientServiceMutation()
+  const deleteService = useDeleteClientServiceMutation()
+  const createServiceBilling = useCreateServiceBilling()
 
   const createDomain = useCreateClientDomain()
   const updateDomain = useUpdateClientDomain()
@@ -250,19 +278,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
     },
   })
 
-  const subscriptionForm = useForm<SubscriptionFormValues>({
-    resolver: zodResolver(subscriptionSchema),
-    defaultValues: {
-      planName: '',
-      status: 'active',
-      amount: undefined,
-      billingCycle: 'monthly',
-      startedAt: '',
-      renewsAt: '',
-      contractId: '',
-    },
-  })
-
   const domainForm = useForm<DomainFormValues>({
     resolver: zodResolver(domainSchema),
     defaultValues: { host: '', provider: '', status: 'active', expiresAt: '' },
@@ -304,20 +319,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
   }, [contractModal, contractForm])
 
   useEffect(() => {
-    if (subscriptionModal.open) {
-      subscriptionForm.reset({
-        planName: subscriptionModal.editing?.planName ?? '',
-        status: subscriptionModal.editing?.status ?? 'active',
-        amount: subscriptionModal.editing?.amount ?? undefined,
-        billingCycle: subscriptionModal.editing?.billingCycle ?? 'monthly',
-        startedAt: subscriptionModal.editing?.startedAt ?? '',
-        renewsAt: subscriptionModal.editing?.renewsAt ?? '',
-        contractId: subscriptionModal.editing?.contractId ?? pendingContract?.id ?? '',
-      })
-    }
-  }, [subscriptionModal, subscriptionForm, pendingContract])
-
-  useEffect(() => {
     if (domainModal.open) {
       domainForm.reset({
         host: domainModal.editing?.host ?? '',
@@ -341,11 +342,131 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
     }
   }, [meetingModal, meetingForm])
 
-  useEffect(() => {
-    if (pendingContract && !subscriptionModal.open) {
-      setSubscriptionModal((previous) => ({ ...previous, open: true }))
+  const handleOpenServiceModal = useCallback(() => {
+    setServiceModal({ open: true, editing: null })
+  }, [])
+
+  const handleEditService = useCallback((service: ClientService) => {
+    setServiceModal({ open: true, editing: service })
+  }, [])
+
+  const handleServiceModalChange = useCallback((open: boolean) => {
+    if (!open) {
+      setServiceModal({ open: false, editing: null })
     }
-  }, [pendingContract, subscriptionModal.open])
+  }, [])
+
+  const handleDeleteServiceEntry = useCallback(
+    async (service: ClientService) => {
+      const confirmed = await confirm({
+        title: 'Remover serviço',
+        description: `Deseja remover "${service.template?.name ?? 'Serviço'}" do cliente?`,
+        confirmText: 'Remover serviço',
+        confirmVariant: 'destructive',
+      })
+      if (!confirmed) return
+
+      try {
+        await deleteService.mutateAsync(service.id)
+        toast({ title: 'Serviço removido', description: 'O serviço foi removido do cliente.' })
+      } catch (error) {
+        const message =
+          (error as { friendlyMessage?: string })?.friendlyMessage ??
+          (error as Error)?.message ??
+          'Não foi possível remover o serviço.'
+        toast({ title: 'Erro ao remover serviço', description: message, variant: 'destructive' })
+      }
+    },
+    [confirm, deleteService],
+  )
+
+  const handleSubmitServiceForm = useCallback(
+    async (values: ClientServiceFormValues) => {
+      const assignedClientId = values.clientId || clientId
+
+      const payload: CreateClientServiceInput = {
+        clientId: assignedClientId,
+        templateId: values.templateId,
+        contractId: values.contractId,
+        status: values.status,
+        billingCycle: values.billingCycle,
+        supportLevel: values.supportLevel,
+        defaultMonthlyFee: values.defaultMonthlyFee,
+        hostingProvider: values.hostingProvider,
+        repositoryUrls: values.repositoryUrls,
+        environmentLinks:
+          values.environmentLinks.length > 0
+            ? values.environmentLinks.reduce<Record<string, string>>((acc, link) => {
+                if (link.label && link.url) {
+                  acc[link.label] = link.url
+                }
+                return acc
+              }, {})
+            : undefined,
+        responsible: {
+          name: values.responsible.name || undefined,
+          email: values.responsible.email || undefined,
+          phone: values.responsible.phone || undefined,
+          role: values.responsible.role || undefined,
+        },
+        notes: values.notes,
+        tags: values.tags,
+        startDate: values.startDate,
+        goLiveDate: values.goLiveDate,
+        endDate: values.endDate,
+      }
+
+      try {
+        if (serviceModal.editing) {
+          await updateService.mutateAsync({ id: serviceModal.editing.id, ...payload } as UpdateClientServiceInput)
+          toast({ title: 'Serviço atualizado', description: 'As informações foram salvas.' })
+        } else {
+          const created = await createService.mutateAsync(payload)
+          toast({ title: 'Serviço criado', description: 'O serviço foi adicionado ao cliente.' })
+
+          if (values.createBilling) {
+            try {
+              await createServiceBilling.mutateAsync({
+                clientServiceId: created.id,
+                status: values.billingStatus ?? 'active',
+                cycle: values.billingCycleOverride || values.billingCycle || 'monthly',
+                startDate: values.billingStartDate ?? values.startDate,
+                endDate: values.billingEndDate,
+                monthlyAmount: values.billingAmount ?? values.defaultMonthlyFee ?? 0,
+                adjustmentIndex: values.billingAdjustmentIndex,
+                notes: values.billingNotes,
+                tags: values.billingTags,
+              })
+              toast({
+                title: 'Cobrança configurada',
+                description: 'A cobrança recorrente inicial foi criada.',
+              })
+            } catch (billingError) {
+              const billingMessage =
+                (billingError as { friendlyMessage?: string })?.friendlyMessage ??
+                (billingError as Error)?.message ??
+                'Não foi possível criar a cobrança inicial.'
+              toast({
+                title: 'Cobrança não criada',
+                description: billingMessage,
+                variant: 'destructive',
+              })
+            }
+          }
+        }
+
+        setServiceModal({ open: false, editing: null })
+      } catch (error) {
+        const message =
+          (error as { friendlyMessage?: string })?.friendlyMessage ??
+          (error as Error)?.message ??
+          'Não foi possível salvar o serviço.'
+        toast({ title: 'Erro ao salvar serviço', description: message, variant: 'destructive' })
+      }
+    },
+    [clientId, createService, createServiceBilling, serviceModal.editing, updateService],
+  )
+
   const contactsColumns = useMemo<ColumnDef<ClientContact>[]>(
     () => [
       {
@@ -379,7 +500,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
         cell: ({ row }) => (
           <div className="flex justify-end gap-2">
             <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -388,7 +509,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                <PenSquareIcon className="size-4" />
              </Button>
              <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -434,7 +555,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
         cell: ({ row }) => (
           <div className="flex justify-end gap-2">
             <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -443,7 +564,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                <PenSquareIcon className="size-4" />
              </Button>
              <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -458,60 +579,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
      [],
    )
 
-  const subscriptionsColumns = useMemo<ColumnDef<ClientSubscription>[]>(
-    () => [
-      {
-        accessorKey: 'planName',
-        header: 'Plano',
-        cell: ({ row }) => row.original.planName,
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: ({ row }) => <Badge variant="outline">{row.original.status}</Badge>,
-      },
-      {
-        accessorKey: 'amount',
-        header: 'Valor',
-        cell: ({ row }) =>
-          row.original.amount != null
-            ? row.original.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-            : '—',
-      },
-      {
-        accessorKey: 'renewsAt',
-        header: 'Renova em',
-        cell: ({ row }) => safeFormatDate(row.original.renewsAt),
-      },
-      {
-        id: 'actions',
-        header: '',
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-2">
-            <Button
-+              type="button"
-               size="icon"
-               variant="ghost"
-               className="size-8"
-               onClick={() => setSubscriptionModal({ open: true, editing: row.original })}
-             >
-               <PenSquareIcon className="size-4" />
-             </Button>
-             <Button
-+              type="button"
-               size="icon"
-               variant="ghost"
-               className="size-8"
-               onClick={() => handleDeleteSubscription(row.original)}
-             >
-               <Trash2Icon className="size-4" />
-             </Button>
-           </div>
-         ),
-       },
-     ],
-     [],
-   )
+  const clientServices = useMemo(() => servicesQuery.data?.data ?? [], [servicesQuery.data?.data])
 
   const domainsColumns = useMemo<ColumnDef<ClientDomain>[]>(
     () => [
@@ -541,7 +609,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
         cell: ({ row }) => (
           <div className="flex justify-end gap-2">
             <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -550,7 +618,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                <PenSquareIcon className="size-4" />
              </Button>
              <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -600,7 +668,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
         cell: ({ row }) => (
           <div className="flex justify-end gap-2">
             <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -609,7 +677,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                <PenSquareIcon className="size-4" />
              </Button>
              <Button
-+              type="button"
+              type="button"
                size="icon"
                variant="ghost"
                className="size-8"
@@ -651,21 +719,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
       }
     },
     [clientId, deleteContract],
-  )
-
-  const handleDeleteSubscription = useCallback(
-    async (subscription: ClientSubscription) => {
-      try {
-        await deleteSubscription.mutateAsync({ clientId, id: subscription.id })
-        toast({ title: 'Assinatura removida', description: `${subscription.planName} foi removida.` })
-      } catch (error) {
-        toast({
-          title: 'Erro ao remover assinatura',
-          description: error instanceof Error ? error.message : 'Não foi possível remover a assinatura.',
-        })
-      }
-    },
-    [clientId, deleteSubscription],
   )
 
   const handleDeleteDomain = useCallback(
@@ -799,20 +852,12 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
       } else {
         result = await createContract.mutateAsync(payload as CreateClientContractInput)
         toast({ title: 'Contrato criado', description: `${values.title} foi criado.` })
-        setPendingContract(result)
         toast({
-          title: 'Gerar assinatura agora?',
-          description: 'Vincule uma assinatura ao contrato recém-criado.',
+          title: 'Próximo passo sugerido',
+          description: 'Cadastre o serviço contratado para acompanhar entregas e cobranças.',
           action: (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSubscriptionModal({ open: true })
-                setPendingContract(result)
-              }}
-            >
-              Criar assinatura
+            <Button variant="outline" size="sm" onClick={handleOpenServiceModal}>
+              Criar serviço
             </Button>
           ),
         })
@@ -822,29 +867,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
       toast({
         title: 'Erro ao salvar contrato',
         description: error instanceof Error ? error.message : 'Não foi possível salvar o contrato.',
-      })
-    }
-  })
-
-  const handleSubmitSubscription = subscriptionForm.handleSubmit(async (values) => {
-    const payload: CreateClientSubscriptionInput | UpdateClientSubscriptionInput = subscriptionModal.editing
-      ? { ...values, clientId, id: subscriptionModal.editing.id, contractId: sanitizeEmpty(values.contractId) }
-      : { ...values, clientId, contractId: sanitizeEmpty(values.contractId) }
-
-    try {
-      if (subscriptionModal.editing) {
-        await updateSubscription.mutateAsync(payload as UpdateClientSubscriptionInput)
-        toast({ title: 'Assinatura atualizada', description: `${values.planName} foi atualizada.` })
-      } else {
-        await createSubscription.mutateAsync(payload as CreateClientSubscriptionInput)
-        toast({ title: 'Assinatura criada', description: `${values.planName} foi criada.` })
-      }
-      setSubscriptionModal({ open: false })
-      setPendingContract(null)
-    } catch (error) {
-      toast({
-        title: 'Erro ao salvar assinatura',
-        description: error instanceof Error ? error.message : 'Não foi possível salvar a assinatura.',
       })
     }
   })
@@ -904,12 +926,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
     getCoreRowModel: getCoreRowModel(),
   })
 
-  const subscriptionsTable = useReactTable({
-    data: subscriptionsQuery.data?.data ?? [],
-    columns: subscriptionsColumns,
-    getCoreRowModel: getCoreRowModel(),
-  })
-
   const domainsTable = useReactTable({
     data: domainsQuery.data?.data ?? [],
     columns: domainsColumns,
@@ -925,7 +941,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
   const summary = {
     contacts: summaryCount(contactsQuery.data),
     contracts: summaryCount(contractsQuery.data),
-    subscriptions: summaryCount(subscriptionsQuery.data),
+    services: summaryCount(servicesQuery.data),
     domains: summaryCount(domainsQuery.data),
     meetings: summaryCount(meetingsQuery.data),
   }
@@ -937,16 +953,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
   const handleContractModalChange = useCallback((open: boolean) => {
     setContractModal((previous) => (open ? { ...previous, open: true } : { open: false }))
   }, [])
-
-  const handleSubscriptionModalChange = useCallback(
-    (open: boolean) => {
-      setSubscriptionModal((previous) => (open ? { ...previous, open: true } : { open: false }))
-      if (!open) {
-        setPendingContract(null)
-      }
-    },
-    [],
-  )
 
   const handleDomainModalChange = useCallback((open: boolean) => {
     setDomainModal((previous) => (open ? { ...previous, open: true } : { open: false }))
@@ -1018,8 +1024,8 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
           <TabsTrigger value="contracts" className="rounded-2xl px-4 py-2 data-[state=active]:bg-white/25">
             Contratos
           </TabsTrigger>
-          <TabsTrigger value="subscriptions" className="rounded-2xl px-4 py-2 data-[state=active]:bg-white/25">
-            Assinaturas
+          <TabsTrigger value="services" className="rounded-2xl px-4 py-2 data-[state=active]:bg-white/25">
+            Serviços
           </TabsTrigger>
           <TabsTrigger value="domains" className="rounded-2xl px-4 py-2 data-[state=active]:bg-white/25">
             Domínios
@@ -1069,14 +1075,128 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
           {renderTable(contractsTable, contractsQuery.isLoading)}
         </TabsContent>
 
-        <TabsContent value="subscriptions" className="space-y-4">
+        <TabsContent value="services" className="space-y-4">
           <SectionHeader
-            title="Assinaturas"
-            description="Assinaturas recorrentes vinculadas ao cliente."
-            actionLabel="Nova assinatura"
-            onAction={() => setSubscriptionModal({ open: true })}
+            title="Serviços"
+            description="Serviços ativos, responsáveis e status operacionais do cliente."
+            actionLabel="Novo serviço"
+            onAction={handleOpenServiceModal}
           />
-          {renderTable(subscriptionsTable, subscriptionsQuery.isLoading)}
+
+          {servicesQuery.isLoading ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-40 rounded-3xl bg-white/10" />
+              ))}
+            </div>
+          ) : clientServices.length === 0 ? (
+            <EmptyPlaceholder
+              title="Nenhum serviço cadastrado"
+              description="Crie um serviço para acompanhar entregáveis, cobranças e responsáveis."
+            >
+              <Button onClick={handleOpenServiceModal}>
+                <LayersIcon className="mr-2 size-4" /> Novo serviço
+              </Button>
+            </EmptyPlaceholder>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {clientServices.map((service) => {
+                const statusStyle = serviceStatusStyles[service.status] ?? 'bg-white/10 text-white'
+                const monthly = formatCurrencyBRL(service.defaultMonthlyFee)
+
+                return (
+                  <div
+                    key={service.id}
+                    className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.04] p-5 transition hover:border-white/20 hover:bg-white/[0.07]"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <Badge className={`${statusStyle} border border-white/20 px-3 py-1 text-xs`}>{service.status}</Badge>
+                        <h3 className="text-base font-semibold text-white">
+                          {service.template?.name ?? 'Serviço sem template'}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-white/70">
+                          {service.supportLevel ? (
+                            <span>{serviceSupportLabels[service.supportLevel] ?? service.supportLevel}</span>
+                          ) : null}
+                          {service.billingCycle ? (
+                            <span className="flex items-center gap-1">
+                              <RefreshCw className="size-3" />
+                              {serviceCycleLabels[service.billingCycle] ?? service.billingCycle}
+                            </span>
+                          ) : null}
+                          {monthly ? (
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="size-3" />
+                              {monthly}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          onClick={() => handleEditService(service)}
+                        >
+                          <PenSquareIcon className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteServiceEntry(service)}
+                        >
+                          <Trash2Icon className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-2 text-xs text-white/70">
+                      {service.responsible?.name ? (
+                        <p>
+                          Responsável: <strong>{service.responsible.name}</strong>{' '}
+                          {service.responsible.role ? `(${service.responsible.role})` : null}
+                        </p>
+                      ) : null}
+                      <div className="flex flex-wrap gap-3">
+                        {service.startDate ? (
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="size-3" />
+                            Início: {safeFormatDate(service.startDate)}
+                          </span>
+                        ) : null}
+                        {service.goLiveDate ? (
+                          <span className="flex items-center gap-1">
+                            <Server className="size-3" />
+                            Go-live: {safeFormatDate(service.goLiveDate)}
+                          </span>
+                        ) : null}
+                        {service.endDate ? (
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="size-3" />
+                            Fim: {safeFormatDate(service.endDate)}
+                          </span>
+                        ) : null}
+                      </div>
+                      {service.tags && service.tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {service.tags.map((tag) => (
+                            <Badge key={tag} variant="outline" className="rounded-full border-white/20 text-white/70">
+                              #{tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="domains" className="space-y-4">
@@ -1254,124 +1374,15 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
         </DialogContent>
       </Dialog>
 
-      <Dialog open={subscriptionModal.open} onOpenChange={handleSubscriptionModalChange}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{subscriptionModal.editing ? 'Editar assinatura' : 'Nova assinatura'}</DialogTitle>
-            <DialogDescription>Conecte assinaturas e planos recorrentes.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmitSubscription} className="grid gap-4">
-            <FormField
-              control={subscriptionForm.control}
-              name="planName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Plano</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Plano" {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={subscriptionForm.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <Input placeholder="ativo" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={subscriptionForm.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={subscriptionForm.control}
-                name="billingCycle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ciclo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="mensal" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={subscriptionForm.control}
-                name="contractId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contrato vinculado</FormLabel>
-                    <Select
-                      value={field.value && field.value !== '' ? field.value : NO_CONTRACT_OPTION_VALUE}
-                      onValueChange={(value) =>
-                        field.onChange(value === NO_CONTRACT_OPTION_VALUE ? '' : value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecionar contrato" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NO_CONTRACT_OPTION_VALUE}>Sem vínculo</SelectItem>
-                        {(contractsQuery.data?.data ?? []).map((contract) => (
-                          <SelectItem key={contract.id} value={contract.id}>
-                            {contract.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                )}
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={subscriptionForm.control}
-                name="startedAt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Início</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={subscriptionForm.control}
-                name="renewsAt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Renova em</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit">Salvar assinatura</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ClientServiceDialog
+        open={serviceModal.open}
+        onOpenChange={handleServiceModalChange}
+        service={serviceModal.editing ?? null}
+        clientId={clientId}
+        isSubmitting={createService.isPending || updateService.isPending || createServiceBilling.isPending}
+        onSubmit={handleSubmitServiceForm}
+      />
+
 
       <Dialog open={domainModal.open} onOpenChange={handleDomainModalChange}>
         <DialogContent className="max-w-xl">

@@ -20,6 +20,9 @@ export interface Expense {
   paidAt?: string | null
   costCenter?: string | null
   notes?: string | null
+  clientId?: string | null
+  clientServiceId?: string | null
+  serviceBillingId?: string | null
   createdAt: string
   updatedAt?: string | null
 }
@@ -44,6 +47,9 @@ export interface ExpenseListFilters {
   status?: string
   costCenter?: string
   dueIn?: string
+  clientId?: string
+  clientServiceId?: string
+  serviceBillingId?: string
   page?: number
   pageSize?: number
 }
@@ -58,6 +64,9 @@ export interface CreateExpenseInput {
   dueDate?: string | null
   costCenter?: string | null
   notes?: string | null
+  clientId?: string | null
+  clientServiceId?: string | null
+  serviceBillingId?: string | null
 }
 
 export type UpdateExpenseInput = Partial<CreateExpenseInput> & { id: string }
@@ -73,6 +82,9 @@ const queryKeys = {
       filters.status ?? null,
       filters.costCenter ?? null,
       filters.dueIn ?? null,
+      filters.clientId ?? null,
+      filters.clientServiceId ?? null,
+      filters.serviceBillingId ?? null,
     ] as const,
   detail: (id: string) => ['expenses', 'detail', id] as const,
 }
@@ -104,6 +116,18 @@ const buildSearchParams = (filters: ExpenseListFilters = {}) => {
     params.set('dueIn', filters.dueIn)
   }
 
+  if (filters.clientId) {
+    params.set('clientId', filters.clientId)
+  }
+
+  if (filters.clientServiceId) {
+    params.set('clientServiceId', filters.clientServiceId)
+  }
+
+  if (filters.serviceBillingId) {
+    params.set('serviceBillingId', filters.serviceBillingId)
+  }
+
   return params
 }
 
@@ -132,8 +156,21 @@ export const useExpenses = (filters: ExpenseListFilters = {}) => {
       status: filters.status,
       costCenter: filters.costCenter,
       dueIn: filters.dueIn,
+      clientId: filters.clientId,
+      clientServiceId: filters.clientServiceId,
+      serviceBillingId: filters.serviceBillingId,
     }),
-    [filters.costCenter, filters.dueIn, filters.page, filters.pageSize, filters.status, filters.type],
+    [
+      filters.clientId,
+      filters.clientServiceId,
+      filters.serviceBillingId,
+      filters.costCenter,
+      filters.dueIn,
+      filters.page,
+      filters.pageSize,
+      filters.status,
+      filters.type,
+    ],
   )
 
   return useQuery({

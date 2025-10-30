@@ -32,18 +32,29 @@ import {
 import { INVOICE_DUE_OPTIONS, INVOICE_PERIOD_OPTIONS, INVOICE_STATUS_OPTIONS } from '@/features/invoices/constants'
 import { useClients } from '@/features/clients/api'
 import { useContracts } from '@/features/contracts/api'
+import { useClientServices } from '@/features/client-services/api'
+import { useServiceBillings } from '@/features/service-billings/api'
 import { toast } from '@/hooks/use-toast'
 
 const DEFAULT_INVOICE_PAGE_SIZE = 10
 const ALL_STATUS_OPTION_VALUE = '__ALL_INVOICE_STATUS__'
 const ALL_CLIENTS_OPTION_VALUE = '__ALL_INVOICE_CLIENTS__'
+const ALL_SERVICES_OPTION_VALUE = '__ALL_INVOICE_SERVICES__'
+const ALL_BILLINGS_OPTION_VALUE = '__ALL_INVOICE_BILLINGS__'
 const ALL_DUE_OPTION_VALUE = '__ALL_INVOICE_DUE__'
 const ALL_PERIOD_OPTION_VALUE = '__ALL_INVOICE_PERIOD__'
+
+const formatCurrencyValue = (value?: number | null, currency: string = 'BRL') => {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value)
+}
 
 const filtersSchema = z.object({
   status: z.string().optional().or(z.literal('')).catch(''),
   dueIn: z.string().optional().or(z.literal('')).catch(''),
   clientId: z.string().optional().or(z.literal('')).catch(''),
+  clientServiceId: z.string().optional().or(z.literal('')).catch(''),
+  serviceBillingId: z.string().optional().or(z.literal('')).catch(''),
   period: z.string().optional().or(z.literal('')).catch(''),
   page: z.coerce.number().int().min(1).catch(1),
   pageSize: z
@@ -59,7 +70,7 @@ export type FiltersFormValues = z.infer<typeof filtersSchema>
 
 const buildFiltersFromSearchParams = (searchParams: ReturnType<typeof useSearchParams>) => {
   const paramsObject: Record<string, unknown> = {}
-  const entries = ['status', 'dueIn', 'clientId', 'period', 'page', 'pageSize'] as const
+  const entries = ['status', 'dueIn', 'clientId', 'clientServiceId', 'serviceBillingId', 'period', 'page', 'pageSize'] as const
 
   for (const key of entries) {
     const value = searchParams.get(key)
@@ -74,6 +85,8 @@ const buildFiltersFromSearchParams = (searchParams: ReturnType<typeof useSearchP
 const toApiFilters = (values: FiltersFormValues) => ({
   status: values.status || undefined,
   clientId: values.clientId || undefined,
+  clientServiceId: values.clientServiceId || undefined,
+  serviceBillingId: values.serviceBillingId || undefined,
   dueIn: values.dueIn || undefined,
   period: values.period || undefined,
 })
@@ -97,6 +110,8 @@ export default function InvoicesPage() {
       status: values.status ?? '',
       dueIn: values.dueIn ?? '',
       clientId: values.clientId ?? '',
+      clientServiceId: values.clientServiceId ?? '',
+      serviceBillingId: values.serviceBillingId ?? '',
       period: values.period ?? '',
       page: values.page ?? 1,
       pageSize: values.pageSize ?? DEFAULT_INVOICE_PAGE_SIZE,
@@ -121,6 +136,18 @@ export default function InvoicesPage() {
       params.set('clientId', values.clientId)
     } else {
       params.delete('clientId')
+    }
+
+    if (values.clientServiceId) {
+      params.set('clientServiceId', values.clientServiceId)
+    } else {
+      params.delete('clientServiceId')
+    }
+
+    if (values.serviceBillingId) {
+      params.set('serviceBillingId', values.serviceBillingId)
+    } else {
+      params.delete('serviceBillingId')
     }
 
     if (values.dueIn) {
@@ -156,6 +183,12 @@ export default function InvoicesPage() {
 
   const clientsQuery = useClients({ pageSize: 100 })
   const contractsQuery = useContracts({ pageSize: 100 })
+  const servicesQuery = useClientServices({ clientId: values.clientId || undefined, pageSize: 100 })
+  const billingsQuery = useServiceBillings({
+    clientId: values.clientId || undefined,
+    clientServiceId: values.clientServiceId || undefined,
+    pageSize: 100,
+  })
 
   const clientOptions = useMemo(
     () =>
@@ -174,6 +207,26 @@ export default function InvoicesPage() {
         clientId: contract.clientId,
       })) ?? [],
     [contractsQuery.data?.data],
+  )
+
+  const serviceOptions = useMemo(
+    () =>
+      servicesQuery.data?.data?.map((service) => ({
+        id: service.id,
+        name: service.template?.name ?? service.id,
+        clientId: service.clientId,
+      })) ?? [],
+    [servicesQuery.data?.data],
+  )
+
+  const billingOptions = useMemo(
+    () =>
+      billingsQuery.data?.data?.map((billing) => ({
+        id: billing.id,
+        label: `${billing.cycle ?? ''} · ${formatCurrencyValue(billing.monthlyAmount)}`.trim(),
+        clientServiceId: billing.clientServiceId,
+      })) ?? [],
+    [billingsQuery.data?.data],
   )
 
   const createInvoice = useCreateInvoice()
@@ -233,6 +286,8 @@ export default function InvoicesPage() {
       status: '',
       dueIn: '',
       clientId: '',
+      clientServiceId: '',
+      serviceBillingId: '',
       period: '',
       page: 1,
       pageSize: DEFAULT_INVOICE_PAGE_SIZE,
@@ -244,6 +299,8 @@ export default function InvoicesPage() {
       const payload = {
         clientId: values.clientId,
         contractId: values.contractId ?? null,
+        clientServiceId: values.clientServiceId ?? null,
+        serviceBillingId: values.serviceBillingId ?? null,
         number: values.number ?? null,
         description: values.description ?? null,
         amount: values.amount,
@@ -333,7 +390,11 @@ export default function InvoicesPage() {
 
   const invoicesQuery = useInvoices(queryFilters)
 
-  const isLoadingLists = clientsQuery.isLoading || contractsQuery.isLoading
+  const isLoadingLists =
+    clientsQuery.isLoading ||
+    contractsQuery.isLoading ||
+    servicesQuery.isLoading ||
+    billingsQuery.isLoading
   const dialogIsSubmitting = createInvoice.isPending || updateInvoice.isPending
   const isProcessing = dialogIsSubmitting || updateInvoiceStatus.isPending
 
@@ -474,6 +535,70 @@ export default function InvoicesPage() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="clientServiceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Serviço</FormLabel>
+                  <Select
+                    value={field.value ? field.value : ALL_SERVICES_OPTION_VALUE}
+                    onValueChange={(value) => {
+                      const nextValue = value === ALL_SERVICES_OPTION_VALUE ? '' : value
+                      field.onChange(nextValue)
+                      form.setValue('page', 1)
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="rounded-2xl border-white/15 bg-white/10 text-white">
+                        <SelectValue placeholder="Todos os serviços" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="rounded-2xl border-white/15 bg-background/95 backdrop-blur">
+                      <SelectItem value={ALL_SERVICES_OPTION_VALUE}>Todos os serviços</SelectItem>
+                      {serviceOptions.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="serviceBillingId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cobrança vinculada</FormLabel>
+                  <Select
+                    value={field.value ? field.value : ALL_BILLINGS_OPTION_VALUE}
+                    onValueChange={(value) => {
+                      const nextValue = value === ALL_BILLINGS_OPTION_VALUE ? '' : value
+                      field.onChange(nextValue)
+                      form.setValue('page', 1)
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="rounded-2xl border-white/15 bg-white/10 text-white">
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="rounded-2xl border-white/15 bg-background/95 backdrop-blur">
+                      <SelectItem value={ALL_BILLINGS_OPTION_VALUE}>Todas</SelectItem>
+                      {billingOptions.map((billing) => (
+                        <SelectItem key={billing.id} value={billing.id}>
+                          {billing.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+
             {values.status === 'paid' ? (
               <FormField
                 control={form.control}
@@ -564,6 +689,8 @@ export default function InvoicesPage() {
         invoice={dialogState.invoice}
         clients={clientOptions}
         contracts={contractOptions}
+        services={serviceOptions}
+        billings={billingOptions}
         isSubmitting={dialogIsSubmitting}
         onSubmit={handleSubmitInvoice}
       />
