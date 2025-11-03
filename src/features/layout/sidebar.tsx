@@ -5,18 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import {
-  BarChart3,
-  Bell,
-  Boxes,
-  Briefcase,
-  Calendar,
-  DollarSign,
-  FileText,
-  Receipt,
-  Settings,
-  Users,
-} from 'lucide-react'
+import { BarChart3, Bell, Briefcase, Calendar, DollarSign, FileText, Receipt, Settings, Users } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -30,7 +19,6 @@ const navigationItems = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/clients', label: 'Clientes', icon: Users },
   { href: '/contracts', label: 'Contratos', icon: FileText },
-  { href: '/service-templates', label: 'Catálogo de Serviços', icon: Boxes },
   { href: '/client-services', label: 'Serviços dos Clientes', icon: Briefcase },
   { href: '/service-billings', label: 'Cobranças', icon: Receipt },
   { href: '/invoices', label: 'Faturas', icon: DollarSign },

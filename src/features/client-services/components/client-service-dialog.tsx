@@ -5,20 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { format } from 'date-fns'
-import {
-  Calendar,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  CircleDashed,
-  ClipboardCopy,
-  LinkIcon,
-  Loader2,
-  Server,
-  Shield,
-  Tags,
-  Workflow,
-} from 'lucide-react'
+import { Calendar, Check, ChevronLeft, ChevronRight, CircleDashed, DollarSign, LinkIcon, Loader2, Server, Shield, Workflow } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -32,21 +19,26 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useClients } from '@/features/clients/api'
 import { useContracts } from '@/features/contracts/api'
-import { useServiceTemplates } from '@/features/service-templates/api'
 import {
   type ClientService,
+  type ClientServiceCategory,
   type CreateClientServiceInput,
   type UpdateClientServiceInput,
 } from '@/features/client-services/api'
 
 const NO_CONTRACT_OPTION = '__NO_CONTRACT__'
-const INHERIT_TEMPLATE_CYCLE_OPTION = '__INHERIT_TEMPLATE_CYCLE__'
-const INHERIT_SERVICE_CYCLE_OPTION = '__INHERIT_SERVICE_CYCLE__'
+const USE_SERVICE_CYCLE_OPTION = '__USE_SERVICE_CYCLE__'
+const SERVICE_CATEGORIES: Array<{ label: string; value: ClientServiceCategory }> = [
+  { label: 'Apps', value: 'APPS' },
+  { label: 'Sites', value: 'SITES' },
+  { label: 'Software', value: 'SOFTWARE' },
+  { label: 'Automações', value: 'AUTOMATIONS' },
+  { label: 'Outros', value: 'OTHERS' },
+]
 
 const responsibleSchema = z.object({
   name: z.string().optional().or(z.literal('')),
@@ -63,7 +55,13 @@ const environmentLinkSchema = z.object({
 const wizardSchema = z
   .object({
     clientId: z.string().min(1, 'Selecione o cliente'),
-    templateId: z.string().min(1, 'Selecione um template'),
+    category: z
+      .string()
+      .min(1, 'Selecione a categoria')
+      .refine((value) => SERVICE_CATEGORIES.some((category) => category.value === value), {
+        message: 'Selecione uma categoria válida',
+      })
+      .transform((value) => value as ClientServiceCategory),
     contractId: z
       .string()
       .optional()
@@ -72,7 +70,7 @@ const wizardSchema = z
     status: z.string().min(1, 'Informe o status do serviço'),
     billingCycle: z.string().optional().or(z.literal('')).transform((value) => (value ? value : undefined)),
     supportLevel: z.string().optional().or(z.literal('')).transform((value) => (value ? value : undefined)),
-    defaultMonthlyFee: z
+    monthlyFee: z
       .string()
       .optional()
       .transform((value) => {
@@ -80,16 +78,21 @@ const wizardSchema = z
         const normalized = value.replace(/\./g, '').replace(',', '.')
         const parsed = Number(normalized)
         return Number.isFinite(parsed) ? parsed : Number.NaN
-      })
-      .refine((value) => value === undefined || (!Number.isNaN(value) && value >= 0), {
-        message: 'Informe um valor válido',
+      }),
+    developmentFee: z
+      .string()
+      .optional()
+      .transform((value) => {
+        if (!value) return undefined
+        const normalized = value.replace(/\./g, '').replace(',', '.')
+        const parsed = Number(normalized)
+        return Number.isFinite(parsed) ? parsed : Number.NaN
       }),
     hostingProvider: z.string().optional().or(z.literal('')).transform((value) => (value ? value : undefined)),
     repositoryUrls: z.array(z.string()).default([]),
     environmentLinks: z.array(environmentLinkSchema).default([]),
     responsible: responsibleSchema,
     notes: z.string().optional().or(z.literal('')).transform((value) => (value ? value : undefined)),
-    tags: z.array(z.string()).default([]),
     startDate: z
       .string()
       .optional()
@@ -140,7 +143,6 @@ const wizardSchema = z
       .optional()
       .or(z.literal(''))
       .transform((value) => (value ? value : undefined)),
-    billingTags: z.array(z.string()).default([]),
   })
   .superRefine((values, ctx) => {
     if (values.startDate && values.endDate && values.startDate > values.endDate) {
@@ -164,6 +166,22 @@ const wizardSchema = z
         code: z.ZodIssueCode.custom,
         path: ['endDate'],
         message: 'O go-live não pode ser posterior à data de término.',
+      })
+    }
+
+    if (values.monthlyFee === undefined || Number.isNaN(values.monthlyFee) || values.monthlyFee < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['monthlyFee'],
+        message: 'Informe a mensalidade do serviço.',
+      })
+    }
+
+    if (values.developmentFee !== undefined && (Number.isNaN(values.developmentFee) || values.developmentFee < 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['developmentFee'],
+        message: 'Informe um valor válido.',
       })
     }
 
@@ -235,18 +253,18 @@ const billingStatusOptions = [
 
 const defaultValues: ClientServiceFormValues = {
   clientId: '',
-  templateId: '',
+  category: '' as ClientServiceFormValues['category'],
   contractId: undefined,
   status: 'active',
   billingCycle: undefined,
   supportLevel: 'standard',
-  defaultMonthlyFee: undefined,
+  monthlyFee: undefined,
+  developmentFee: undefined,
   hostingProvider: undefined,
   repositoryUrls: [],
   environmentLinks: [{ label: 'Produção', url: '' }],
   responsible: {},
   notes: undefined,
-  tags: [],
   startDate: undefined,
   goLiveDate: undefined,
   endDate: undefined,
@@ -258,7 +276,6 @@ const defaultValues: ClientServiceFormValues = {
   billingAmount: undefined,
   billingAdjustmentIndex: undefined,
   billingNotes: undefined,
-  billingTags: [],
 }
 
 const normalizeServiceToForm = (service?: ClientService | null, clientId?: string): ClientServiceFormValues => {
@@ -276,18 +293,18 @@ const normalizeServiceToForm = (service?: ClientService | null, clientId?: strin
 
   return {
     clientId: service.clientId ?? clientId ?? '',
-    templateId: service.templateId ?? '',
+    category: (service.category ?? '') as ClientServiceFormValues['category'],
     contractId: service.contractId ?? undefined,
     status: service.status ?? 'active',
     billingCycle: service.billingCycle ?? undefined,
     supportLevel: service.supportLevel ?? 'standard',
-    defaultMonthlyFee: service.defaultMonthlyFee ?? undefined,
+    monthlyFee: service.monthlyFee ?? undefined,
+    developmentFee: service.developmentFee ?? undefined,
     hostingProvider: service.hostingProvider ?? undefined,
     repositoryUrls: service.repositoryUrls ?? [],
     environmentLinks,
     responsible: service.responsible ?? {},
     notes: service.notes ?? undefined,
-    tags: service.tags ?? [],
     startDate: service.startDate ?? undefined,
     goLiveDate: service.goLiveDate ?? undefined,
     endDate: service.endDate ?? undefined,
@@ -296,10 +313,9 @@ const normalizeServiceToForm = (service?: ClientService | null, clientId?: strin
     billingCycleOverride: service.billingCycle ?? undefined,
     billingStartDate: service.startDate ?? undefined,
     billingEndDate: service.endDate ?? undefined,
-    billingAmount: service.defaultMonthlyFee ?? undefined,
+    billingAmount: service.monthlyFee ?? undefined,
     billingAdjustmentIndex: undefined,
     billingNotes: undefined,
-    billingTags: [],
   }
 }
 
@@ -319,11 +335,9 @@ export function ClientServiceDialog({
     mode: 'onChange',
   })
 
-  const templateId = useWatch({ control: form.control, name: 'templateId' })
   const selectedClientId = useWatch({ control: form.control, name: 'clientId' })
 
   const clientsQuery = useClients({ pageSize: 100 })
-  const templatesQuery = useServiceTemplates()
   const contractsQuery = useContracts({ clientId: selectedClientId || undefined })
 
   const environmentLinksArray = useFieldArray({ control: form.control, name: 'environmentLinks' })
@@ -334,17 +348,6 @@ export function ClientServiceDialog({
       setCurrentStep('context')
     }
   }, [clientId, form, open, service])
-
-  const templateOptions = useMemo(
-    () =>
-      templatesQuery.data?.data?.map((template) => ({
-        id: template.id,
-        name: template.name,
-        category: template.category,
-        billingCycle: template.defaultBillingCycle,
-      })) ?? [],
-    [templatesQuery.data?.data],
-  )
 
   const clientOptions = useMemo(
     () =>
@@ -364,14 +367,9 @@ export function ClientServiceDialog({
     [contractsQuery.data?.data],
   )
 
-  const selectedTemplate = useMemo(
-    () => templateOptions.find((template) => template.id === templateId) ?? null,
-    [templateId, templateOptions],
-  )
-
   const handleNextStep = async () => {
     if (currentStep === 'context') {
-      const valid = await form.trigger(['clientId', 'templateId', 'contractId'])
+      const valid = await form.trigger(['clientId', 'category', 'contractId'])
       if (!valid) return
       setCurrentStep('scope')
       return
@@ -379,7 +377,8 @@ export function ClientServiceDialog({
     if (currentStep === 'scope') {
       const valid = await form.trigger([
         'status',
-        'defaultMonthlyFee',
+        'monthlyFee',
+        'developmentFee',
         'supportLevel',
         'startDate',
         'goLiveDate',
@@ -418,20 +417,6 @@ export function ClientServiceDialog({
     await onSubmit(values)
   })
 
-  const buildTemplateHints = () => {
-    if (!selectedTemplate) return null
-
-    return (
-      <div className="rounded-xl border border-dashed border-white/20 bg-white/[0.03] p-3 text-xs text-white/70">
-        <p className="font-semibold text-white">Resumo do template selecionado</p>
-        <ul className="mt-2 space-y-1">
-          {selectedTemplate.category ? <li>Categoria: {selectedTemplate.category}</li> : null}
-          {selectedTemplate.billingCycle ? <li>Ciclo padrão: {selectedTemplate.billingCycle}</li> : null}
-        </ul>
-      </div>
-    )
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
@@ -455,7 +440,7 @@ export function ClientServiceDialog({
                   Escopo & SLA
                 </TabsTrigger>
                 <TabsTrigger value="billing">
-                  <Tags className="size-4" />
+                  <DollarSign className="size-4" />
                   Cobrança inicial
                 </TabsTrigger>
               </TabsList>
@@ -491,27 +476,24 @@ export function ClientServiceDialog({
 
                   <FormField
                     control={form.control}
-                    name="templateId"
+                    name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Template de serviço</FormLabel>
+                        <FormLabel>Categoria do serviço</FormLabel>
                         <FormControl>
-                          <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value ? String(field.value) : ''}
+                          >
                             <SelectTrigger>
-                              <SelectValue placeholder="Selecione um template" />
+                              <SelectValue placeholder="Selecione a categoria" />
                             </SelectTrigger>
                             <SelectContent>
-                              {templatesQuery.isLoading ? (
-                                <div className="flex items-center gap-2 px-3 py-2 text-sm">
-                                  <Spinner className="size-4" /> Carregando templates...
-                                </div>
-                              ) : (
-                                templateOptions.map((template) => (
-                                  <SelectItem key={template.id} value={template.id}>
-                                    {template.name}
-                                  </SelectItem>
-                                ))
-                              )}
+                              {SERVICE_CATEGORIES.map((category) => (
+                                <SelectItem key={category.value} value={category.value}>
+                                  {category.label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </FormControl>
@@ -575,7 +557,6 @@ export function ClientServiceDialog({
                   />
                 </div>
 
-                <div className="mt-4">{buildTemplateHints()}</div>
               </TabsContent>
 
               <TabsContent value="scope">
@@ -612,15 +593,12 @@ export function ClientServiceDialog({
                       <FormItem>
                         <FormLabel>Ciclo de cobrança</FormLabel>
                         <FormControl>
-                          <Select
-                            onValueChange={(value) => field.onChange(value === INHERIT_TEMPLATE_CYCLE_OPTION ? '' : value)}
-                            value={field.value ? field.value : INHERIT_TEMPLATE_CYCLE_OPTION}
-                          >
+                          <Select onValueChange={(value) => field.onChange(value || undefined)} value={field.value ?? ''}>
                             <SelectTrigger>
-                              <SelectValue placeholder="Herda do template" />
+                              <SelectValue placeholder="Selecione o ciclo" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={INHERIT_TEMPLATE_CYCLE_OPTION}>Usar ciclo padrão</SelectItem>
+                              <SelectItem value="">Sem ciclo definido</SelectItem>
                               {billingCycleOptions.map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
                                   {option.label}
@@ -636,14 +614,33 @@ export function ClientServiceDialog({
 
                   <FormField
                     control={form.control}
-                    name="defaultMonthlyFee"
+                    name="monthlyFee"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Mensalidade base</FormLabel>
+                        <FormLabel>Mensalidade</FormLabel>
                         <FormControl>
                           <Input
                             inputMode="decimal"
                             placeholder="Ex: 3500,00"
+                            value={field.value != null ? String(field.value) : ''}
+                            onChange={(event) => field.onChange(event.target.value)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="developmentFee"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valor de desenvolvimento</FormLabel>
+                        <FormControl>
+                          <Input
+                            inputMode="decimal"
+                            placeholder="Ex: 12000,00"
                             value={field.value != null ? String(field.value) : ''}
                             onChange={(event) => field.onChange(event.target.value)}
                           />
@@ -824,32 +821,6 @@ export function ClientServiceDialog({
                     Adicionar ambiente
                   </Button>
                 </div>
-
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Ex: onboarding, ecommerce, retainer"
-                          value={(field.value ?? []).join(', ')}
-                          onChange={(event) => {
-                            const value = event.target.value
-                            const items = value
-                              .split(',')
-                              .map((item) => item.trim())
-                              .filter(Boolean)
-                            field.onChange(items)
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="notes"
@@ -924,14 +895,14 @@ export function ClientServiceDialog({
                             <FormLabel>Ciclo da cobrança</FormLabel>
                             <FormControl>
                               <Select
-                                onValueChange={(value) => field.onChange(value === INHERIT_SERVICE_CYCLE_OPTION ? '' : value)}
-                                value={field.value ? field.value : INHERIT_SERVICE_CYCLE_OPTION}
+                                onValueChange={(value) => field.onChange(value === USE_SERVICE_CYCLE_OPTION ? '' : value)}
+                                value={field.value ? field.value : USE_SERVICE_CYCLE_OPTION}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Herda do serviço" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value={INHERIT_SERVICE_CYCLE_OPTION}>Usar ciclo do serviço</SelectItem>
+                                  <SelectItem value={USE_SERVICE_CYCLE_OPTION}>Usar ciclo do serviço</SelectItem>
                                   {billingCycleOptions.map((option) => (
                                     <SelectItem key={option.value} value={option.value}>
                                       {option.label}
@@ -1005,32 +976,6 @@ export function ClientServiceDialog({
                           </FormItem>
                         )}
                       />
-
-                      <FormField
-                        control={form.control}
-                        name="billingTags"
-                        render={({ field }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel>Tags da cobrança</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Ex: retainer, onboarding"
-                                value={(field.value ?? []).join(', ')}
-                                onChange={(event) => {
-                                  const value = event.target.value
-                                  const items = value
-                                    .split(',')
-                                    .map((item) => item.trim())
-                                    .filter(Boolean)
-                                  field.onChange(items)
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
                       <FormField
                         control={form.control}
                         name="billingNotes"
@@ -1069,7 +1014,7 @@ export function ClientServiceDialog({
                   </>
                 ) : (
                   <>
-                    <ClipboardCopy className="size-4" />
+                    <Workflow className="size-4" />
                     <span>As informações serão enviadas para o CRM.</span>
                   </>
                 )}

@@ -8,18 +8,13 @@ const clientServicesApi = createApiClient()
 export type ClientServiceStatus = 'draft' | 'active' | 'paused' | 'suspended' | 'terminated' | 'archived' | string
 export type ClientServiceSupportLevel = 'basic' | 'standard' | 'premium' | 'enterprise' | string
 export type ClientServiceBillingCycle = 'monthly' | 'bimonthly' | 'quarterly' | 'semester' | 'yearly' | string
+export type ClientServiceCategory = 'APPS' | 'SITES' | 'SOFTWARE' | 'AUTOMATIONS' | 'OTHERS'
 
 export interface ClientServiceResponsible {
   name?: string | null
   email?: string | null
   phone?: string | null
   role?: string | null
-}
-
-export interface ClientServiceTemplateSummary {
-  id: string
-  name: string
-  category?: string | null
 }
 
 export interface ClientServiceClientSummary {
@@ -37,24 +32,23 @@ export interface ClientServiceContractSummary {
 export interface ClientService {
   id: string
   clientId: string
-  templateId?: string | null
   contractId?: string | null
+  category: ClientServiceCategory
   status: ClientServiceStatus
   responsible?: ClientServiceResponsible | null
   hostingProvider?: string | null
   repositoryUrls?: string[] | null
   environmentLinks?: Record<string, string> | null
-  defaultMonthlyFee?: number | null
+  monthlyFee?: number | null
+  developmentFee?: number | null
   billingCycle?: ClientServiceBillingCycle | null
   supportLevel?: ClientServiceSupportLevel | null
   startDate?: string | null
   goLiveDate?: string | null
   endDate?: string | null
-  tags?: string[] | null
   notes?: string | null
   createdAt: string
   updatedAt?: string | null
-  template?: ClientServiceTemplateSummary | null
   client?: ClientServiceClientSummary | null
   contract?: ClientServiceContractSummary | null
 }
@@ -76,32 +70,31 @@ export interface ClientServiceListFilters {
   pageSize?: number
   clientId?: string
   status?: string
-  templateId?: string
+  category?: ClientServiceCategory
   contractId?: string
   startDate?: string
   endDate?: string
   billingCycle?: string
   supportLevel?: string
-  tags?: string[]
   search?: string
 }
 
 export type CreateClientServiceInput = {
   clientId: string
-  templateId?: string | null
+  category: ClientServiceCategory
   contractId?: string | null
   status?: ClientServiceStatus
   responsible?: ClientServiceResponsible | null
   hostingProvider?: string | null
   repositoryUrls?: string[] | null
   environmentLinks?: Record<string, string> | null
-  defaultMonthlyFee?: number | null
+  monthlyFee?: number | null
+  developmentFee?: number | null
   billingCycle?: ClientServiceBillingCycle | null
   supportLevel?: ClientServiceSupportLevel | null
   startDate?: string | null
   goLiveDate?: string | null
   endDate?: string | null
-  tags?: string[] | null
   notes?: string | null
 }
 
@@ -120,7 +113,7 @@ const buildSearchParams = (filters: ClientServiceListFilters = {}) => {
     ['pageSize', (value) => typeof value === 'number' && Number.isFinite(value)],
     ['clientId', (value) => Boolean(value)],
     ['status', (value) => Boolean(value)],
-    ['templateId', (value) => Boolean(value)],
+    ['category', (value) => Boolean(value)],
     ['contractId', (value) => Boolean(value)],
     ['startDate', (value) => Boolean(value)],
     ['endDate', (value) => Boolean(value)],
@@ -135,10 +128,6 @@ const buildSearchParams = (filters: ClientServiceListFilters = {}) => {
       params.set(key, String(value))
     }
   })
-
-  if (filters.tags && filters.tags.length > 0) {
-    filters.tags.forEach((tag) => params.append('tags', tag))
-  }
 
   return params
 }
@@ -176,17 +165,17 @@ export const useClientServices = (filters: ClientServiceListFilters = {}) => {
       pageSize: filters.pageSize,
       clientId: filters.clientId,
       status: filters.status,
-      templateId: filters.templateId,
+      category: filters.category,
       contractId: filters.contractId,
       startDate: filters.startDate,
       endDate: filters.endDate,
       billingCycle: filters.billingCycle,
       supportLevel: filters.supportLevel,
-      tags: filters.tags,
       search: filters.search,
     }),
     [
       filters.billingCycle,
+      filters.category,
       filters.clientId,
       filters.contractId,
       filters.endDate,
@@ -196,8 +185,6 @@ export const useClientServices = (filters: ClientServiceListFilters = {}) => {
       filters.startDate,
       filters.status,
       filters.supportLevel,
-      filters.tags,
-      filters.templateId,
     ],
   )
 

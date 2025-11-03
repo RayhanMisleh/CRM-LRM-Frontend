@@ -49,20 +49,20 @@ import {
   useDeleteClientService,
   useUpdateClientService,
   type ClientService,
+  type ClientServiceCategory,
   type CreateClientServiceInput,
   type UpdateClientServiceInput,
 } from '@/features/client-services/api'
 import { useCreateServiceBilling } from '@/features/service-billings/api'
 import { useClients } from '@/features/clients/api'
 import { useContracts } from '@/features/contracts/api'
-import { useServiceTemplates } from '@/features/service-templates/api'
 import { useConfirm } from '@/hooks/use-confirm'
 import { toast } from '@/hooks/use-toast'
 
 const filtersSchema = z.object({
   clientId: z.string().optional().or(z.literal('')).catch(''),
   status: z.string().optional().or(z.literal('')).catch(''),
-  templateId: z.string().optional().or(z.literal('')).catch(''),
+  category: z.string().optional().or(z.literal('')).catch(''),
   contractId: z.string().optional().or(z.literal('')).catch(''),
   startDate: z.string().optional().or(z.literal('')).catch(''),
   endDate: z.string().optional().or(z.literal('')).catch(''),
@@ -92,6 +92,24 @@ const cycleLabels: Record<string, string> = {
   quarterly: 'Trimestral',
   semester: 'Semestral',
   yearly: 'Anual',
+}
+
+const categoryLabels: Record<ClientServiceCategory, string> = {
+  APPS: 'Apps',
+  SITES: 'Sites',
+  SOFTWARE: 'Software',
+  AUTOMATIONS: 'Automações',
+  OTHERS: 'Outros',
+}
+
+const categoryOptions = Object.entries(categoryLabels).map(([value, label]) => ({
+  value: value as ClientServiceCategory,
+  label,
+}))
+
+const getCategoryLabel = (category?: ClientServiceCategory | null) => {
+  if (!category) return 'Serviço personalizado'
+  return categoryLabels[category] ?? category
 }
 
 const ALL_VALUE = '__ALL__'
@@ -126,7 +144,7 @@ export default function ClientServicesPage() {
     defaultValues: {
       clientId: '',
       status: '',
-      templateId: '',
+      category: '',
       contractId: '',
       startDate: '',
       endDate: '',
@@ -139,7 +157,7 @@ export default function ClientServicesPage() {
   const servicesQuery = useClientServices({
     clientId: values?.clientId || undefined,
     status: values?.status ? (values.status === ALL_VALUE ? undefined : values.status) : undefined,
-    templateId: values?.templateId || undefined,
+    category: values?.category || undefined,
     contractId: values?.contractId || undefined,
     startDate: values?.startDate || undefined,
     endDate: values?.endDate || undefined,
@@ -152,7 +170,6 @@ export default function ClientServicesPage() {
   const createBilling = useCreateServiceBilling()
 
   const clientsQuery = useClients({ pageSize: 100 })
-  const templatesQuery = useServiceTemplates()
   const contractsQuery = useContracts({ clientId: values?.clientId || undefined })
 
   const clientOptions = useMemo(
@@ -162,15 +179,6 @@ export default function ClientServicesPage() {
         name: client.tradeName ?? client.companyName,
       })) ?? [],
     [clientsQuery.data?.data],
-  )
-
-  const templateOptions = useMemo(
-    () =>
-      templatesQuery.data?.data?.map((template) => ({
-        id: template.id,
-        name: template.name,
-      })) ?? [],
-    [templatesQuery.data?.data],
   )
 
   const contractOptions = useMemo(
@@ -192,7 +200,7 @@ export default function ClientServicesPage() {
     form.reset({
       clientId: '',
       status: '',
-      templateId: '',
+      category: '',
       contractId: '',
       startDate: '',
       endDate: '',
@@ -216,7 +224,7 @@ export default function ClientServicesPage() {
     async (service: ClientService) => {
       const confirmed = await confirm({
         title: 'Remover serviço',
-        description: `Tem certeza que deseja remover "${service.template?.name ?? service.id}"?`,
+        description: `Tem certeza que deseja remover o serviço de ${getCategoryLabel(service.category)}?`,
         confirmText: 'Remover serviço',
         confirmVariant: 'destructive',
       })
@@ -247,12 +255,13 @@ export default function ClientServicesPage() {
     async (values: ClientServiceFormValues) => {
       const payload: CreateClientServiceInput = {
         clientId: values.clientId,
-        templateId: values.templateId,
+        category: values.category,
         contractId: values.contractId,
         status: values.status,
         billingCycle: values.billingCycle,
         supportLevel: values.supportLevel,
-        defaultMonthlyFee: values.defaultMonthlyFee,
+        monthlyFee: values.monthlyFee,
+        developmentFee: values.developmentFee,
         hostingProvider: values.hostingProvider,
         repositoryUrls: values.repositoryUrls,
         environmentLinks:
@@ -271,7 +280,6 @@ export default function ClientServicesPage() {
           role: values.responsible.role || undefined,
         },
         notes: values.notes,
-        tags: values.tags,
         startDate: values.startDate,
         goLiveDate: values.goLiveDate,
         endDate: values.endDate,
@@ -303,10 +311,9 @@ export default function ClientServicesPage() {
               cycle: values.billingCycleOverride || values.billingCycle || 'monthly',
               startDate: values.billingStartDate ?? values.startDate,
               endDate: values.billingEndDate,
-              monthlyAmount: values.billingAmount ?? values.defaultMonthlyFee ?? 0,
+              monthlyAmount: values.billingAmount ?? values.monthlyFee ?? 0,
               adjustmentIndex: values.billingAdjustmentIndex,
               notes: values.billingNotes,
-              tags: values.billingTags,
             })
             toast({
               title: 'Cobrança configurada',
@@ -350,7 +357,7 @@ export default function ClientServicesPage() {
       <Card className="border-white/10 bg-white/[0.03]">
         <CardHeader>
           <CardTitle className="text-lg">Filtros</CardTitle>
-          <CardDescription>Refine o portfólio por cliente, status, template ou intervalo de datas.</CardDescription>
+          <CardDescription>Refine o portfólio por cliente, status, categoria ou intervalo de datas.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -413,23 +420,23 @@ export default function ClientServicesPage() {
 
               <FormField
                 control={form.control}
-                name="templateId"
+                name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Template</FormLabel>
+                    <FormLabel>Categoria</FormLabel>
                     <FormControl>
                       <Select
                         onValueChange={(value) => field.onChange(value === ALL_VALUE ? '' : value)}
                         value={field.value ? field.value : ALL_VALUE}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Todos os templates" />
+                          <SelectValue placeholder="Todas as categorias" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={ALL_VALUE}>Todos</SelectItem>
-                          {templateOptions.map((template) => (
-                            <SelectItem key={template.id} value={template.id}>
-                              {template.name}
+                          <SelectItem value={ALL_VALUE}>Todas</SelectItem>
+                          {categoryOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -501,7 +508,7 @@ export default function ClientServicesPage() {
                   <FormItem className="md:col-span-3">
                     <FormLabel>Busca</FormLabel>
                     <FormControl>
-                      <Input placeholder="Filtrar por responsável, tag ou palavra-chave" {...field} />
+                      <Input placeholder="Filtrar por responsável ou palavra-chave" {...field} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -545,7 +552,8 @@ export default function ClientServicesPage() {
             <div className="grid gap-4 lg:grid-cols-2">
               {services.map((service) => {
                 const statusStyle = statusBadgeStyles[service.status] ?? 'bg-white/10 text-white'
-                const formattedValue = formatCurrency(service.defaultMonthlyFee)
+                const monthlyValue = formatCurrency(service.monthlyFee)
+                const developmentValue = formatCurrency(service.developmentFee)
                 const StatusIcon = statusIcon[service.status] ?? Workflow
 
                 return (
@@ -568,7 +576,7 @@ export default function ClientServicesPage() {
                         </div>
 
                         <h3 className="text-lg font-semibold text-white">
-                          {service.template?.name ?? 'Serviço sem template'}
+                          {getCategoryLabel(service.category)}
                         </h3>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
                           <span className="flex items-center gap-1">
@@ -581,10 +589,16 @@ export default function ClientServicesPage() {
                               {cycleLabels[service.billingCycle] ?? service.billingCycle}
                             </span>
                           )}
-                          {formattedValue ? (
+                          {monthlyValue ? (
                             <span className="flex items-center gap-1">
                               <DollarSign className="size-4" />
-                              {formattedValue}
+                              {monthlyValue}
+                            </span>
+                          ) : null}
+                          {developmentValue ? (
+                            <span className="flex items-center gap-1">
+                              <ShieldCheck className="size-4" />
+                              Desenvolvimento: {developmentValue}
                             </span>
                           ) : null}
                         </div>
@@ -625,18 +639,10 @@ export default function ClientServicesPage() {
                     <div className="mt-4 space-y-2 text-sm text-white/70">
                       {service.responsible?.name ? (
                         <p>
-                          Responsable: <strong>{service.responsible.name}</strong>{' '}
+                          Responsável: <strong>{service.responsible.name}</strong>{' '}
                           {service.responsible.role ? `(${service.responsible.role})` : null}
                         </p>
                       ) : null}
-
-                      <div className="flex flex-wrap gap-2">
-                        {service.tags?.map((tag) => (
-                          <Badge key={tag} variant="outline" className="rounded-full border-white/20 text-white/70">
-                            #{tag}
-                          </Badge>
-                        ))}
-                      </div>
 
                       <div className="flex flex-wrap gap-4 text-xs text-white/50">
                         {service.startDate ? (

@@ -80,8 +80,8 @@ interface InvoiceFormDialogProps {
   invoice?: Invoice | null
   clients: Array<{ id: string; name: string }>
   contracts: Array<{ id: string; title: string; clientId?: string | null }>
-  services: Array<{ id: string; name: string; clientId?: string | null }>
-  billings: Array<{ id: string; label: string; clientServiceId?: string | null }>
+  services: Array<{ id: string; name: string; clientId?: string | null; monthlyFee?: number | null; developmentFee?: number | null }>
+  billings: Array<{ id: string; label: string; clientServiceId?: string | null; monthlyAmount?: number | null }>
   isSubmitting?: boolean
   onSubmit: (values: InvoiceFormValues) => Promise<void> | void
 }
@@ -181,6 +181,31 @@ export function InvoiceFormDialog({
     if (!selectedServiceId) return billingsOptions
     return billingsOptions.filter((billing) => !billing.clientServiceId || billing.clientServiceId === selectedServiceId)
   }, [billingsOptions, selectedServiceId])
+
+  const selectedServiceData = useMemo(
+    () => servicesOptions.find((service) => service.id === selectedServiceId),
+    [selectedServiceId, servicesOptions],
+  )
+
+  const selectedBillingData = useMemo(
+    () => billingsOptions.find((billing) => billing.id === watchedValues?.serviceBillingId),
+    [billingsOptions, watchedValues?.serviceBillingId],
+  )
+
+  useEffect(() => {
+    if (!selectedServiceData) return
+    if (watchedValues?.serviceBillingId) return
+    if (selectedServiceData.monthlyFee != null) {
+      form.setValue('amount', selectedServiceData.monthlyFee)
+    }
+  }, [form, selectedServiceData, watchedValues?.serviceBillingId])
+
+  useEffect(() => {
+    if (!selectedBillingData) return
+    if (selectedBillingData.monthlyAmount != null) {
+      form.setValue('amount', selectedBillingData.monthlyAmount)
+    }
+  }, [form, selectedBillingData])
 
   const handleSubmit = form.handleSubmit(async (values) => {
     await onSubmit(values)
@@ -297,7 +322,20 @@ export function InvoiceFormDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>Opcional: vincule a fatura a um serviço contratado.</FormDescription>
+                  <FormDescription>
+                    {selectedServiceData
+                      ? [
+                          selectedServiceData.monthlyFee != null
+                            ? `Mensalidade: ${formatCurrency(selectedServiceData.monthlyFee, currency)}`
+                            : null,
+                          selectedServiceData.developmentFee != null
+                            ? `Desenvolvimento: ${formatCurrency(selectedServiceData.developmentFee, currency)}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' • ') || 'Serviço personalizado'
+                      : 'Opcional: vincule a um serviço contratado.'}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -332,7 +370,11 @@ export function InvoiceFormDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>Opcional: associe a uma cobrança recorrente existente.</FormDescription>
+                  <FormDescription>
+                    {selectedBillingData && selectedBillingData.monthlyAmount != null
+                      ? `Valor atual da cobrança: ${formatCurrency(selectedBillingData.monthlyAmount, currency)}`
+                      : 'Opcional: associe a uma cobrança recorrente existente.'}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

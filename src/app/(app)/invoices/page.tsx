@@ -32,7 +32,7 @@ import {
 import { INVOICE_DUE_OPTIONS, INVOICE_PERIOD_OPTIONS, INVOICE_STATUS_OPTIONS } from '@/features/invoices/constants'
 import { useClients } from '@/features/clients/api'
 import { useContracts } from '@/features/contracts/api'
-import { useClientServices } from '@/features/client-services/api'
+import { useClientServices, type ClientService, type ClientServiceCategory } from '@/features/client-services/api'
 import { useServiceBillings } from '@/features/service-billings/api'
 import { toast } from '@/hooks/use-toast'
 
@@ -47,6 +47,33 @@ const ALL_PERIOD_OPTION_VALUE = '__ALL_INVOICE_PERIOD__'
 const formatCurrencyValue = (value?: number | null, currency: string = 'BRL') => {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value)
+}
+
+const SERVICE_CATEGORY_LABELS: Record<ClientServiceCategory, string> = {
+  APPS: 'Apps',
+  SITES: 'Sites',
+  SOFTWARE: 'Software',
+  AUTOMATIONS: 'Automações',
+  OTHERS: 'Outros',
+}
+
+const getServiceCategoryLabel = (category?: ClientServiceCategory | null) => {
+  if (!category) return 'Serviço personalizado'
+  return SERVICE_CATEGORY_LABELS[category] ?? category
+}
+
+const getServiceOptionLabel = (service: ClientService) => {
+  const parts = [getServiceCategoryLabel(service.category)]
+  if (service.client?.name) {
+    parts.push(service.client.name)
+  }
+  if (service.monthlyFee != null) {
+    parts.push(formatCurrencyValue(service.monthlyFee))
+  }
+  if (service.developmentFee != null) {
+    parts.push(`Dev: ${formatCurrencyValue(service.developmentFee)}`)
+  }
+  return parts.join(' • ')
 }
 
 const filtersSchema = z.object({
@@ -213,8 +240,10 @@ export default function InvoicesPage() {
     () =>
       servicesQuery.data?.data?.map((service) => ({
         id: service.id,
-        name: service.template?.name ?? service.id,
+        name: getServiceOptionLabel(service),
         clientId: service.clientId,
+        monthlyFee: service.monthlyFee ?? undefined,
+        developmentFee: service.developmentFee ?? undefined,
       })) ?? [],
     [servicesQuery.data?.data],
   )
@@ -225,6 +254,7 @@ export default function InvoicesPage() {
         id: billing.id,
         label: `${billing.cycle ?? ''} · ${formatCurrencyValue(billing.monthlyAmount)}`.trim(),
         clientServiceId: billing.clientServiceId,
+        monthlyAmount: billing.monthlyAmount ?? undefined,
       })) ?? [],
     [billingsQuery.data?.data],
   )

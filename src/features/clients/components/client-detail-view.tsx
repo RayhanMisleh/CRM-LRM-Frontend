@@ -86,6 +86,7 @@ import {
   useUpdateClientService as useUpdateClientServiceMutation,
   useDeleteClientService as useDeleteClientServiceMutation,
   type ClientService,
+  type ClientServiceCategory,
   type CreateClientServiceInput,
   type UpdateClientServiceInput,
 } from '@/features/client-services/api'
@@ -119,6 +120,19 @@ const serviceStatusStyles: Record<string, string> = {
   paused: 'bg-amber-500/20 text-amber-200',
   suspended: 'bg-amber-500/20 text-amber-200',
   terminated: 'bg-rose-500/20 text-rose-200',
+}
+
+const serviceCategoryLabels: Record<ClientServiceCategory, string> = {
+  APPS: 'Apps',
+  SITES: 'Sites',
+  SOFTWARE: 'Software',
+  AUTOMATIONS: 'Automações',
+  OTHERS: 'Outros',
+}
+
+const getServiceCategoryLabel = (category?: ClientServiceCategory | null) => {
+  if (!category) return 'Serviço personalizado'
+  return serviceCategoryLabels[category] ?? category
 }
 
 const serviceSupportLabels: Record<string, string> = {
@@ -360,7 +374,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
     async (service: ClientService) => {
       const confirmed = await confirm({
         title: 'Remover serviço',
-        description: `Deseja remover "${service.template?.name ?? 'Serviço'}" do cliente?`,
+        description: `Deseja remover o serviço de ${getServiceCategoryLabel(service.category)} do cliente?`,
         confirmText: 'Remover serviço',
         confirmVariant: 'destructive',
       })
@@ -386,12 +400,13 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
 
       const payload: CreateClientServiceInput = {
         clientId: assignedClientId,
-        templateId: values.templateId,
+        category: values.category,
         contractId: values.contractId,
         status: values.status,
         billingCycle: values.billingCycle,
         supportLevel: values.supportLevel,
-        defaultMonthlyFee: values.defaultMonthlyFee,
+        monthlyFee: values.monthlyFee,
+        developmentFee: values.developmentFee,
         hostingProvider: values.hostingProvider,
         repositoryUrls: values.repositoryUrls,
         environmentLinks:
@@ -410,7 +425,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
           role: values.responsible.role || undefined,
         },
         notes: values.notes,
-        tags: values.tags,
         startDate: values.startDate,
         goLiveDate: values.goLiveDate,
         endDate: values.endDate,
@@ -428,15 +442,14 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
             try {
               await createServiceBilling.mutateAsync({
                 clientServiceId: created.id,
-                status: values.billingStatus ?? 'active',
-                cycle: values.billingCycleOverride || values.billingCycle || 'monthly',
-                startDate: values.billingStartDate ?? values.startDate,
-                endDate: values.billingEndDate,
-                monthlyAmount: values.billingAmount ?? values.defaultMonthlyFee ?? 0,
-                adjustmentIndex: values.billingAdjustmentIndex,
-                notes: values.billingNotes,
-                tags: values.billingTags,
-              })
+              status: values.billingStatus ?? 'active',
+              cycle: values.billingCycleOverride || values.billingCycle || 'monthly',
+              startDate: values.billingStartDate ?? values.startDate,
+              endDate: values.billingEndDate,
+              monthlyAmount: values.billingAmount ?? values.monthlyFee ?? 0,
+              adjustmentIndex: values.billingAdjustmentIndex,
+              notes: values.billingNotes,
+            })
               toast({
                 title: 'Cobrança configurada',
                 description: 'A cobrança recorrente inicial foi criada.',
@@ -1102,7 +1115,8 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
             <div className="grid gap-4 lg:grid-cols-2">
               {clientServices.map((service) => {
                 const statusStyle = serviceStatusStyles[service.status] ?? 'bg-white/10 text-white'
-                const monthly = formatCurrencyBRL(service.defaultMonthlyFee)
+                const monthly = formatCurrencyBRL(service.monthlyFee)
+                const development = formatCurrencyBRL(service.developmentFee)
 
                 return (
                   <div
@@ -1113,7 +1127,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                       <div className="space-y-2">
                         <Badge className={`${statusStyle} border border-white/20 px-3 py-1 text-xs`}>{service.status}</Badge>
                         <h3 className="text-base font-semibold text-white">
-                          {service.template?.name ?? 'Serviço sem template'}
+                          {getServiceCategoryLabel(service.category)}
                         </h3>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-white/70">
                           {service.supportLevel ? (
@@ -1131,6 +1145,7 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                               {monthly}
                             </span>
                           ) : null}
+                          {development ? <span>Desenvolvimento: {development}</span> : null}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1182,15 +1197,6 @@ export function ClientDetailView({ clientId, initialData }: ClientDetailViewProp
                           </span>
                         ) : null}
                       </div>
-                      {service.tags && service.tags.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {service.tags.map((tag) => (
-                            <Badge key={tag} variant="outline" className="rounded-full border-white/20 text-white/70">
-                              #{tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 )

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 
 import { createApiClient } from '@/lib/api'
+import type { ClientServiceCategory } from '@/features/client-services/api'
 
 const serviceBillingsApi = createApiClient()
 
@@ -15,6 +16,9 @@ export interface ServiceBillingServiceSummary {
   clientName?: string | null
   status?: string | null
   supportLevel?: string | null
+  category?: ClientServiceCategory | null
+  monthlyFee?: number | null
+  developmentFee?: number | null
 }
 
 export interface ServiceBilling {
@@ -28,7 +32,6 @@ export interface ServiceBilling {
   monthlyAmount?: number | null
   adjustmentIndex?: string | null
   notes?: string | null
-  tags?: string[] | null
   createdAt: string
   updatedAt?: string | null
 }
@@ -54,7 +57,6 @@ export interface ServiceBillingListFilters {
   cycle?: string
   startDate?: string
   endDate?: string
-  tags?: string[]
   search?: string
 }
 
@@ -67,7 +69,6 @@ export type CreateServiceBillingInput = {
   monthlyAmount?: number | null
   adjustmentIndex?: string | null
   notes?: string | null
-  tags?: string[] | null
 }
 
 export type UpdateServiceBillingInput = Partial<CreateServiceBillingInput> & { id: string }
@@ -98,10 +99,6 @@ const buildSearchParams = (filters: ServiceBillingListFilters = {}) => {
       params.set(key, String(value))
     }
   })
-
-  if (filters.tags && filters.tags.length > 0) {
-    filters.tags.forEach((tag) => params.append('tags', tag))
-  }
 
   return params
 }
@@ -143,7 +140,6 @@ export const useServiceBillings = (filters: ServiceBillingListFilters = {}) => {
       cycle: filters.cycle,
       startDate: filters.startDate,
       endDate: filters.endDate,
-      tags: filters.tags,
       search: filters.search,
     }),
     [
@@ -156,7 +152,6 @@ export const useServiceBillings = (filters: ServiceBillingListFilters = {}) => {
       filters.search,
       filters.startDate,
       filters.status,
-      filters.tags,
     ],
   )
 

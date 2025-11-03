@@ -315,14 +315,14 @@ export function ContractsPage() {
         await createClientService.mutateAsync({
           clientId: contract.clientId,
           contractId: contract.id,
-          templateId: undefined,
+          category: 'OTHERS',
           status: 'active',
           billingCycle: (contract.billingCycle as string | undefined) ?? undefined,
-          defaultMonthlyFee: contract.totalValue ?? undefined,
+          monthlyFee: contract.totalValue ?? undefined,
+          developmentFee: undefined,
           startDate: contract.signedAt ?? undefined,
           endDate: contract.validUntil ?? undefined,
           supportLevel: 'standard',
-          tags: [],
         })
         toast({
           title: 'Serviço criado',

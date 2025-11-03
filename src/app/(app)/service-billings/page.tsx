@@ -55,7 +55,7 @@ import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/features/layout/header/page-header'
 import { EmptyPlaceholder } from '@/features/layout/empty-placeholder'
 import { useClients } from '@/features/clients/api'
-import { useClientServices } from '@/features/client-services/api'
+import { useClientServices, type ClientService, type ClientServiceCategory } from '@/features/client-services/api'
 import {
   useServiceBillings,
   useCreateServiceBilling,
@@ -141,6 +141,33 @@ const CYCLE_LABELS: Record<string, string> = {
   yearly: 'Anual',
 }
 
+const SERVICE_CATEGORY_LABELS: Record<ClientServiceCategory, string> = {
+  APPS: 'Apps',
+  SITES: 'Sites',
+  SOFTWARE: 'Software',
+  AUTOMATIONS: 'Automações',
+  OTHERS: 'Outros',
+}
+
+const getServiceCategoryLabel = (category?: ClientServiceCategory | null) => {
+  if (!category) return 'Serviço personalizado'
+  return SERVICE_CATEGORY_LABELS[category] ?? category
+}
+
+const getServiceOptionLabel = (service: ClientService) => {
+  const parts = [getServiceCategoryLabel(service.category)]
+  if (service.client?.name) {
+    parts.push(service.client.name)
+  }
+  if (service.monthlyFee != null) {
+    parts.push(formatCurrency(service.monthlyFee))
+  }
+  if (service.developmentFee != null) {
+    parts.push(`Dev: ${formatCurrency(service.developmentFee)}`)
+  }
+  return parts.join(' • ')
+}
+
 const ALL_FILTER_VALUE = '__ALL_SERVICE_BILLINGS__'
 
 export default function ServiceBillingsPage() {
@@ -181,7 +208,7 @@ export default function ServiceBillingsPage() {
     () =>
       servicesQuery.data?.data?.map((service) => ({
         id: service.id,
-        name: service.template?.name ?? service.id,
+        name: getServiceOptionLabel(service),
       })) ?? [],
     [servicesQuery.data?.data],
   )

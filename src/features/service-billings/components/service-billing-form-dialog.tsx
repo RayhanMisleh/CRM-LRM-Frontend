@@ -48,6 +48,32 @@ const cycleOptions = [
   { value: 'yearly', label: 'Anual' },
 ]
 
+const serviceCategoryLabels = {
+  APPS: 'Apps',
+  SITES: 'Sites',
+  SOFTWARE: 'Software',
+  AUTOMATIONS: 'Automações',
+  OTHERS: 'Outros',
+} as const
+
+const getServiceCategoryLabel = (service?: ClientService | null) => {
+  if (!service?.category) return 'Serviço personalizado'
+  return serviceCategoryLabels[service.category as keyof typeof serviceCategoryLabels] ?? service.category
+}
+
+const formatCurrencyBRL = (value?: number | null) => {
+  if (value === null || value === undefined) return null
+  try {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 2,
+    }).format(value)
+  } catch {
+    return `R$ ${value.toFixed(2)}`
+  }
+}
+
 const billingSchema = z.object({
   clientServiceId: z.string().min(1, 'Selecione o serviço'),
   status: z.string().min(1, 'Informe o status'),
@@ -75,7 +101,6 @@ const billingSchema = z.object({
     .optional()
     .or(z.literal(''))
     .transform((value) => (value ? value : undefined)),
-  tags: z.array(z.string()).default([]),
 })
 
 export type ServiceBillingFormValues = z.infer<typeof billingSchema>
@@ -91,7 +116,6 @@ const normalizeBillingToForm = (billing?: ServiceBilling | null): ServiceBilling
       endDate: undefined,
       adjustmentIndex: undefined,
       notes: undefined,
-      tags: [],
     }
   }
 
@@ -99,12 +123,11 @@ const normalizeBillingToForm = (billing?: ServiceBilling | null): ServiceBilling
     clientServiceId: billing.clientServiceId,
     status: billing.status ?? 'active',
     cycle: billing.cycle,
-    monthlyAmount: billing.monthlyAmount ?? 0,
+    monthlyAmount: billing.monthlyAmount ?? billing.service?.monthlyFee ?? 0,
     startDate: billing.startDate ?? undefined,
     endDate: billing.endDate ?? undefined,
     adjustmentIndex: billing.adjustmentIndex ?? undefined,
     notes: billing.notes ?? undefined,
-    tags: billing.tags ?? [],
   }
 }
 
@@ -137,6 +160,7 @@ export function ServiceBillingFormDialog({
   }, [billing, form, open])
 
   const servicesQuery = useClientServices({ clientId, pageSize: 100 })
+  const services = servicesQuery.data?.data ?? []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -161,7 +185,19 @@ export function ServiceBillingFormDialog({
                 <FormItem>
                   <FormLabel>Serviço do cliente</FormLabel>
                   <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value)
+                        const selectedService = services.find((service) => service.id === value)
+                        if (selectedService?.monthlyFee != null) {
+                          form.setValue('monthlyAmount', selectedService.monthlyFee, { shouldDirty: true })
+                        }
+                        if (!form.getValues('cycle') && selectedService?.billingCycle) {
+                          form.setValue('cycle', selectedService.billingCycle, { shouldDirty: true })
+                        }
+                      }}
+                      value={field.value}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o serviço" />
                       </SelectTrigger>
@@ -171,11 +207,19 @@ export function ServiceBillingFormDialog({
                             <Spinner className="size-4" /> Carregando serviços...
                           </div>
                         ) : (
-                          (servicesQuery.data?.data ?? []).map((service: ClientService) => (
-                            <SelectItem key={service.id} value={service.id}>
-                              {service.template?.name ?? service.id}
-                            </SelectItem>
-                          ))
+                          services.map((service: ClientService) => {
+                            const categoryLabel = getServiceCategoryLabel(service)
+                            const clientLabel = service.client?.name ? ` • ${service.client.name}` : ''
+                            const monthlyLabel = formatCurrencyBRL(service.monthlyFee)
+                            const priceSegment = monthlyLabel ? ` • ${monthlyLabel}` : ''
+                            return (
+                              <SelectItem key={service.id} value={service.id}>
+                                {categoryLabel}
+                                {clientLabel}
+                                {priceSegment}
+                              </SelectItem>
+                            )
+                          })
                         )}
                       </SelectContent>
                     </Select>
@@ -312,31 +356,6 @@ export function ServiceBillingFormDialog({
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Ex: retainer, onboarding"
-                      value={(field.value ?? []).join(', ')}
-                      onChange={(event) => {
-                        const next = event.target.value
-                          .split(',')
-                          .map((item) => item.trim())
-                          .filter(Boolean)
-                        field.onChange(next)
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
